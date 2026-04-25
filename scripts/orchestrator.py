@@ -19,13 +19,38 @@ SKILL_DIR = Path(__file__).parent.parent
 PROMPTS_DIR = SKILL_DIR / "prompts"
 
 CITIES = {
+    # 港澳
     "香港": "hongkong",
     "Hong Kong": "hongkong",
     "hk": "hongkong",
     "澳门": "macau",
     "Macau": "macau",
-    "macao": "macau",
-    "mo": "macau",
+    # 内地
+    "北京": "beijing",
+    "Beijing": "beijing",
+    "上海": "shanghai",
+    "Shanghai": "shanghai",
+    "广州": "guangzhou",
+    "Guangzhou": "guangzhou",
+    "深圳": "shenzhen",
+    "Shenzhen": "shenzhen",
+    "成都": "chengdu",
+    "Chengdu": "chengdu",
+    "杭州": "hangzhou",
+    "Hangzhou": "hangzhou",
+    "长沙": "changsha",
+    "Changsha": "changsha",
+    "重庆": "chongqing",
+    "Chongqing": "chongqing",
+    "武汉": "wuhan",
+    "Wuhan": "wuhan",
+    "南京": "nanjing",
+    "Nanjing": "nanjing",
+    "西安": "xian",
+    # 台湾
+    "台北": "taipei",
+    "Taipei": "taipei",
+    # 海外
     "曼谷": "bangkok",
     "Bangkok": "bangkok",
     "bkk": "bangkok",
@@ -35,7 +60,29 @@ CITIES = {
     "Seoul": "seoul",
 }
 
+# ===== 区域分类：决定平台权重体系和搜索策略 =====
+REGION_HK_MACAU = "hk_macau"   # 港澳模式
+REGION_MAINLAND = "mainland"    # 内地模式
+REGION_TAIWAN = "taiwan"        # 台湾模式
+REGION_OVERSEAS = "overseas"    # 海外模式
+
+CITY_REGIONS = {
+    # 港澳
+    "香港": REGION_HK_MACAU, "澳门": REGION_HK_MACAU,
+    # 内地
+    "北京": REGION_MAINLAND, "上海": REGION_MAINLAND, "广州": REGION_MAINLAND,
+    "深圳": REGION_MAINLAND, "成都": REGION_MAINLAND, "杭州": REGION_MAINLAND,
+    "长沙": REGION_MAINLAND, "重庆": REGION_MAINLAND, "武汉": REGION_MAINLAND,
+    "南京": REGION_MAINLAND, "西安": REGION_MAINLAND,
+    # 台湾
+    "台北": REGION_TAIWAN,
+    # 海外
+    "曼谷": REGION_OVERSEAS, "东京": REGION_OVERSEAS, "首尔": REGION_OVERSEAS,
+}
+
 TAVILY_API_URL = "https://api.tavily.com/search"
+
+# ===== 港澳模式平台配置 =====
 PLATFORM_DISPLAY_NAMES = {
     "google_maps": "Google Maps",
     "dianping": "大众点评",
@@ -44,11 +91,75 @@ PLATFORM_DISPLAY_NAMES = {
     "tripadvisor": "TripAdvisor",
 }
 PLATFORM_DOMAINS = {
-    "openrice": ["openrice.com"],
     "google_maps": ["google.com", "maps.google.com"],
     "dianping": ["dianping.com", "m.dianping.com"],
     "xiaohongshu": ["xiaohongshu.com", "www.xiaohongshu.com"],
-    "tripadvisor": ["tripadvisor.com", "www.tripadvisor.com"],
+    "openrice": ["openrice.com"],
+    "tripadvisor": ["tripadvisor.com", "tripadvisor.com.hk"],
+}
+
+# ===== 内地模式平台配置 =====
+MAINLAND_PLATFORM_DISPLAY_NAMES = {
+    "dianping": "大众点评",
+    "douyin": "抖音",
+    "xiaohongshu": "小红书",
+    "gaode": "高德",
+    "general": "综合",
+}
+MAINLAND_PLATFORM_DOMAINS = {
+    "dianping": ["dianping.com", "m.dianping.com"],
+    "douyin": ["douyin.com", "www.douyin.com", "iesdouyin.com"],
+    "xiaohongshu": ["xiaohongshu.com", "www.xiaohongshu.com"],
+    "gaode": ["amap.com", "gaode.com"],
+    "general": [],  # 综合搜索无特定域名过滤
+}
+
+# ===== 区域 → 平台权重映射 =====
+REGION_PLATFORM_WEIGHTS = {
+    REGION_HK_MACAU: {
+        "openrice": 0.30,
+        "google_maps": 0.25,
+        "dianping": 0.20,
+        "xiaohongshu": 0.15,
+        "tripadvisor": 0.10,
+    },
+    REGION_MAINLAND: {
+        "dianping": 0.20,
+        "douyin": 0.20,
+        "xiaohongshu": 0.20,
+        "gaode": 0.20,
+        "general": 0.20,
+    },
+    REGION_TAIWAN: {
+        "openrice": 0.30,
+        "google_maps": 0.25,
+        "dianping": 0.20,
+        "xiaohongshu": 0.15,
+        "tripadvisor": 0.10,
+    },
+    REGION_OVERSEAS: {
+        "google_maps": 0.30,
+        "tripadvisor": 0.25,
+        "dianping": 0.20,
+        "xiaohongshu": 0.15,
+        "openrice": 0.10,
+    },
+}
+
+# ===== 区域 → 平台显示名映射 =====
+REGION_DISPLAY_NAMES = {
+    REGION_HK_MACAU: PLATFORM_DISPLAY_NAMES,
+    REGION_MAINLAND: MAINLAND_PLATFORM_DISPLAY_NAMES,
+    REGION_TAIWAN: PLATFORM_DISPLAY_NAMES,
+    REGION_OVERSEAS: PLATFORM_DISPLAY_NAMES,
+}
+
+# ===== 区域 → 平台域名映射 =====
+REGION_DOMAINS = {
+    REGION_HK_MACAU: PLATFORM_DOMAINS,
+    REGION_MAINLAND: MAINLAND_PLATFORM_DOMAINS,
+    REGION_TAIWAN: PLATFORM_DOMAINS,
+    REGION_OVERSEAS: PLATFORM_DOMAINS,
 }
 # ===== 标题级过滤：聚合页 / 列表页 / 非目标店专属内容 =====
 BAD_TITLE_HINTS = [
@@ -107,7 +218,11 @@ TRUSTED_DOMAINS = [
     "xiaohongshu.com",                    # 小红书（本身有营销属性但需要原始信号）
     "openrice.com",                       # OpenRice
     "tripadvisor.com",                    # TripAdvisor
+    "douyin.com",                         # 抖音
+    "amap.com", "gaode.com",              # 高德
     "yelp.com",                           # Yelp
+    "weibo.com",                          # 微博
+    "ctrip.com",                          # 携程
 ]
 
 CHAIN_HINTS = ["分店", "branch", "店", "soho", "wan chai", "中环", "沙田", "湾仔", "铜锣湾", "九龙", "尖沙咀"]
@@ -195,15 +310,9 @@ def _has_browser_tool() -> dict:
 def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     """
     浏览器搜索：用 Playwright 打开 Bing 搜索页面，提取真实搜索结果。
-    仅在本地有 Playwright 环境时执行，Agent 环境下由 _search_via_agent() 处理。
+    强制使用 Bing HK 地区参数，确保搜索结果优先返回香港本地内容。
     返回标准格式: [{title, url, snippet, score, source}, ...]
     """
-    # 检查是否在 Agent 环境中（有 .search_tasks 目录说明是 Agent 在运行）
-    tasks_dir = SKILL_DIR / ".search_tasks"
-    if tasks_dir.exists():
-        # Agent 环境下，浏览器搜索不是最优选择，让 Agent 自己搜
-        return []
-
     browser_tools = _has_browser_tool()
     if not browser_tools["has_playwright"]:
         return []  # Playwright Python 库未安装
@@ -211,30 +320,50 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     from urllib.parse import quote
     results = []
 
-    # 根据城市强制 Bing 地区参数，避免内地结果垄断
-    bing_region_params = ""
-    if city == "香港":
-        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
-    elif city == "澳门":
-        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
+    # Bing 地区参数：确保搜索本地内容
+    bing_params = ""
+    locale = "zh-CN"
+    accept_lang = "zh-CN,zh;q=0.9,en;q=0.8"
+    
+    region = CITY_REGIONS.get(city, REGION_MAINLAND)
+    
+    if region == REGION_HK_MACAU:
+        bing_params = "&setmkt=zh-HK&setlang=zh-Hant"
+        locale = "zh-HK"
+        accept_lang = "zh-HK,zh-Hant;q=0.9,en;q=0.8"
+    elif region == REGION_TAIWAN:
+        bing_params = "&setmkt=zh-TW&setlang=zh-TW"
+        locale = "zh-TW"
+        accept_lang = "zh-TW,zh;q=0.9,en;q=0.8"
+    elif region == REGION_MAINLAND:
+        bing_params = "&setmkt=zh-CN&setlang=zh-Hans"
+        locale = "zh-CN"
+        accept_lang = "zh-CN,zh;q=0.9,en;q=0.8"
     elif city == "东京":
-        bing_region_params = "&setmkt=ja-JP&setlang=ja"
+        bing_params = "&setmkt=ja-JP&setlang=ja"
+        locale = "ja-JP"
+        accept_lang = "ja;q=0.9,en;q=0.8"
     elif city == "首尔":
-        bing_region_params = "&setmkt=ko-KR&setlang=ko"
+        bing_params = "&setmkt=ko-KR&setlang=ko"
+        locale = "ko-KR"
+        accept_lang = "ko;q=0.9,en;q=0.8"
     elif city == "曼谷":
-        bing_region_params = "&setmkt=th-TH&setlang=th"
+        bing_params = "&setmkt=th-TH&setlang=th"
+        locale = "th-TH"
+        accept_lang = "th;q=0.9,en;q=0.8"
 
-    search_url = f"https://www.bing.com/search?q={quote(query)}&count={max_results * 2}{bing_region_params}"
+    search_url = f"https://www.bing.com/search?q={quote(query)}&count={max_results * 2}{bing_params}"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             viewport={"width": 1280, "height": 800},
+            locale=locale,
             user_agent=(
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
-            locale="zh-HK" if city in ("香港", "澳门") else ("ja-JP" if city == "东京" else ("ko-KR" if city == "首尔" else ("th-TH" if city == "曼谷" else "zh-CN"))),
+            extra_http_headers={"Accept-Language": accept_lang},
         )
         page = context.new_page()
 
@@ -242,19 +371,23 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
             page.goto(search_url, wait_until="networkidle", timeout=20000)
             page.wait_for_selector("li.b_algo", timeout=10000)
 
+            # 提取搜索结果
             algo_elements = page.query_selector_all("li.b_algo")
             for li in algo_elements[:max_results * 2]:
+                # 标题和链接
                 h2_a = li.query_selector("h2 a")
                 if not h2_a:
                     continue
                 title = h2_a.inner_text().strip()
                 href = h2_a.get_attribute("href") or ""
 
+                # 过滤无意义标题
                 if len(title) < 3 or title.lower() in ["zhihu.com", "baidu.com", "google.com"]:
                     continue
                 if not href.startswith("http"):
                     continue
 
+                # 摘要
                 snippet_elem = li.query_selector("p")
                 snippet = ""
                 if snippet_elem:
@@ -272,21 +405,20 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
                     break
 
         except Exception:
-            pass
+            pass  # 超时或渲染失败，返回已收集的结果
         finally:
             browser.close()
 
     return results
 
 
-def _search_static(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
+def _search_static(query: str, max_results: int = 8, platform: str = None) -> list:
     """
     静态爬虫：尝试用 requests + BeautifulSoup 抓取 Bing 搜索结果。
     策略：能爬的优先爬（快），拿不到再 fallback。
     返回标准格式: [{title, url, snippet, score, source}, ...]
     
     如果传了 platform，会按目标平台域名过滤结果，减少无关内容混入。
-    如果传了 city，会强制 Bing 地区参数，避免内地结果垄断。
     超时 15s 未返回则视为搜索失败，返回空列表。
     """
     try:
@@ -295,45 +427,18 @@ def _search_static(query: str, max_results: int = 8, platform: str = None, city:
     except ImportError:
         return []  # 依赖缺失，graceful fallback
 
-    # 根据城市调整 Accept-Language，让 Bing 返回对应地区内容
-    accept_lang = "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
-    if city == "香港":
-        accept_lang = "zh-HK,zh-Hant;q=0.9,en-HK;q=0.8,en;q=0.7"
-    elif city == "澳门":
-        # 澳门跟香港接近，用繁体中文
-        accept_lang = "zh-HK,zh-Hant;q=0.9,en-HK;q=0.8,en;q=0.7"
-    elif city == "东京":
-        accept_lang = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
-    elif city == "首尔":
-        accept_lang = "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
-    elif city == "曼谷":
-        accept_lang = "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7"
-
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": accept_lang,
+        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
         "Referer": "https://www.bing.com/",
     }
 
-    # 根据城市强制 Bing 地区参数
-    bing_region_params = ""
-    if city == "香港":
-        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
-    elif city == "澳门":
-        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
-    elif city == "东京":
-        bing_region_params = "&setmkt=ja-JP&setlang=ja"
-    elif city == "首尔":
-        bing_region_params = "&setmkt=ko-KR&setlang=ko"
-    elif city == "曼谷":
-        bing_region_params = "&setmkt=th-TH&setlang=th"
-
     # 用 Bing 搜索（反爬比 Google 宽松，结果结构稳定）
-    bing_url = f"https://www.bing.com/search?q={requests.utils.quote(query)}&count={max_results * 3}{bing_region_params}"
+    bing_url = f"https://www.bing.com/search?q={requests.utils.quote(query)}&count={max_results * 3}"
 
     # 重试 2 次，每次超时 15s
     resp = None
@@ -401,127 +506,49 @@ def _search_static(query: str, max_results: int = 8, platform: str = None, city:
     return results
 
 
-def _search_via_agent(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
-    """
-    通过 Agent 执行搜索：将搜索任务写入 .search_tasks/，由 Agent 读取并执行。
-    同时检查 .search_results/ 看 Agent 是否已经返回了结果。
-    
-    这是最强搜索层：Agent 有 web_search / web_fetch 等内置工具，
-    能绕过反爬、处理 JS 渲染页面、访问登录态内容。
-    """
-    tasks_dir = SKILL_DIR / ".search_tasks"
-    results_dir = SKILL_DIR / ".search_results"
-    tasks_dir.mkdir(parents=True, exist_ok=True)
-    results_dir.mkdir(parents=True, exist_ok=True)
-
-    import time
-    task_id = f"{int(time.time() * 1000)}_{hash(query) % 10000}"
-    task_file = tasks_dir / f"{task_id}.json"
-
-    # 写入搜索任务
-    task_data = {
-        "id": task_id,
-        "query": query,
-        "platform": platform,
-        "city": city,
-        "max_results": max_results,
-        "status": "pending",
-        "created_at": time.time(),
-    }
-    try:
-        task_file.write_text(json.dumps(task_data, ensure_ascii=False), encoding="utf-8")
-    except Exception:
-        pass  # 写入失败不影响后续
-
-    # 检查是否已有结果（Agent 可能已经处理过相同查询）
-    # 用 query 内容做匹配，而不是 task_id
-    try:
-        for result_file in sorted(results_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
-            try:
-                data = json.loads(result_file.read_text(encoding="utf-8"))
-                if data.get("query") == query and data.get("status") == "completed":
-                    return data.get("results", [])[:max_results]
-            except Exception:
-                continue
-    except Exception:
-        pass
-
-    return []  # Agent 尚未返回结果，后续层级会兜底
-
-
 def _search_from_cache(query: str, max_results: int = 8) -> list:
-    """从预写的搜索缓存中读取结果。缓存是人工准备的演示数据，按餐厅名匹配。"""
+    """从 Agent 预写的搜索缓存中读取结果。"""
     cache_dir = SKILL_DIR / ".search_cache"
-    if not cache_dir.exists():
-        return []
-    
-    # 从 query 中提取餐厅名（query 格式如 "OpenRice \"dough bros\" 香港"）
-    # 尝试提取引号内的品牌名
-    import re
-    brand_match = re.search(r'"([^"]+)"', query)
-    brand_name = brand_match.group(1).lower() if brand_match else query.lower()
-    
-    try:
-        for cf in cache_dir.glob("*.json"):
+    if cache_dir.exists():
+        cache_file = cache_dir / f"{hash(query) % 10000}.json"
+        if cache_file.exists():
             try:
-                data = json.loads(cf.read_text(encoding="utf-8"))
-                cached_query = data.get("query", "").lower()
-                
-                # 匹配逻辑：餐厅名互相包含，或缓存文件名包含餐厅名
-                cf_name = cf.stem.lower()
-                if (brand_name in cached_query or 
-                    cached_query in brand_name or
-                    brand_name in cf_name or
-                    cf_name in brand_name):
-                    return data.get("results", [])[:max_results]
+                cached = json.loads(cache_file.read_text(encoding="utf-8"))
+                return cached.get("results", [])[:max_results]
             except Exception:
-                continue
-    except Exception:
-        pass
+                pass
     return []
 
 
 def search_web(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
     """
-    搜索入口：三层策略，确保尽可能拿到数据。
+    搜索入口：强制 Bing HK + Playwright，确保地区参数正确。
     返回统一格式: [{title, url, snippet, score, source}, ...]
 
-    策略优先级：
-    1. Agent 搜索任务（如果运行在 Agent 环境中）
-    2. 本地浏览器搜索（Playwright 无头浏览器）
-    3. 静态爬虫（requests + BeautifulSoup）
-    4. 预写缓存（兜底，确保演示不翻车）
-
-    platform: 明确指定当前搜索的目标平台，用于域名过滤。
-    city: 明确指定当前城市，用于强制 Bing 地区参数。
+    核心策略：Bing HK 强制搜索，不走大陆搜索引擎。
+    - city 参数控制地区参数（setmkt/setlang）
+    - 默认走 Playwright 浏览器搜索（能渲染 JS，获取更完整的 snippet）
+    - 浏览器不可用时回退静态爬虫
+    - 最后 fallback 到缓存
     """
     results = []
 
-    # === 第 1 层：Agent 搜索任务（如果在 Agent 环境中）===
-    # Agent 搜索能力远强于本地爬虫，优先使用
-    agent_results = _search_via_agent(query, max_results, platform=platform, city=city)
-    if agent_results:
-        results.extend(agent_results)
+    # === 第 1 层：浏览器搜索（优先，更完整）===
+    browser_results = _search_browser(query, max_results, city=city)
+    if browser_results:
+        results.extend(browser_results)
 
-    # === 第 2 层：本地浏览器搜索（Playwright）===
-    if not results:
-        browser_results = _search_browser(query, max_results, city=city)
-        if browser_results:
-            results.extend(browser_results)
-
-    # === 第 3 层：静态爬虫（requests + BeautifulSoup）===
+    # === 第 2 层：静态爬虫（浏览器不可用时回退）===
     if not results:
         static_results = _search_static(query, max_results, platform=platform, city=city)
         if static_results:
             results.extend(static_results)
 
-    # === 第 4 层：预写缓存（兜底）===
+    # === 第 3 层：缓存保底 ===
     if not results:
         cache_results = _search_from_cache(query, max_results)
-        if cache_results:
-            results.extend(cache_results)
+        results.extend(cache_results)
 
-    # 返回前裁剪到 max_results
     return results[:max_results]
 
 
@@ -666,7 +693,7 @@ def resolve_restaurant_target(restaurant_name: str, city_name: str) -> dict:
     branch_hits = []
     for query in discovery_queries:
         try:
-            results = search_web(query, max_results=6, city=city_name)
+            results = search_web(query, max_results=6)
         except Exception:
             continue
         for item in results:
@@ -704,40 +731,114 @@ def resolve_restaurant_target(restaurant_name: str, city_name: str) -> dict:
 
 def platform_queries(target: dict) -> dict:
     """
-    为每个平台生成 Bing 搜索查询。
-    策略：每个平台单独搜"平台名 品牌名 城市"，确保 Bing 明确知道我们要搜哪个平台上的内容。
-    5 个平台全部生成，不遗漏。
+    搜索策略：根据区域自动切换平台搜索方案
+
+    港澳模式：权威平台精准搜索（OpenRice/Google Maps/TripAdvisor/大众点评）+ 小红书热度
+    内地模式：四大厂商平台（大众点评/抖音/小红书/高德）+ 综合搜索（新闻/旅游/微博）
+
+    查询格式设计原则：
+    - 平台名在前，确保 Bing 返回该平台的结果
+    - 用引号包裹品牌名，避免模糊匹配
+    - 加城市锚点，过滤掉其他地区的结果
     """
     restaurant_name = target["brand_name"]
     city_name = target["city"]
     branch_candidates = target.get("branch_candidates", [])
-
     anchor = branch_candidates[0] if branch_candidates else city_name
 
-    # 所有城市都生成 5 个平台的查询
-    # 格式："平台名 品牌名 城市" —— 让 Bing 明确知道我们要搜该平台上的内容
-    queries = {
-        "openrice": [
-            f'OpenRice "{restaurant_name}" {city_name}',
-            f'site:openrice.com "{restaurant_name}" "{anchor}"',
-        ],
-        "google_maps": [
-            f'"Google Maps" "{restaurant_name}" {city_name}',
-            f'site:google.com/maps "{restaurant_name}" "{anchor}"',
-        ],
-        "dianping": [
-            f'大众点评 "{restaurant_name}" {city_name}',
-            f'site:dianping.com "{restaurant_name}" "{anchor}"',
-        ],
-        "xiaohongshu": [
-            f'小红书 "{restaurant_name}" {city_name}',
-            f'site:xiaohongshu.com "{restaurant_name}" "{anchor}"',
-        ],
-        "tripadvisor": [
-            f'TripAdvisor "{restaurant_name}" {city_name}',
-            f'site:tripadvisor.com "{restaurant_name}" "{anchor}"',
-        ],
-    }
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    queries = {}
+
+    if region == REGION_HK_MACAU:
+        # ===== 港澳模式 =====
+        # OpenRice 是港澳最权威的饮食平台
+        queries["openrice"] = [
+            f'site:openrice.com "{restaurant_name}" {anchor}',
+            f'"{restaurant_name}" {anchor} openrice',
+        ]
+        queries["google_maps"] = [
+            f'"{restaurant_name}" {anchor} site:google.com/maps',
+            f'"{restaurant_name}" {anchor} Google Maps 评分',
+        ]
+        queries["tripadvisor"] = [
+            f'"{restaurant_name}" {anchor} site:tripadvisor.com.hk',
+            f'"{restaurant_name}" {anchor} tripadvisor 评分',
+        ]
+        queries["dianping"] = [
+            f'"{restaurant_name}" {anchor} site:dianping.com',
+            f'"{restaurant_name}" {anchor} 大众点评',
+        ]
+        queries["xiaohongshu"] = [
+            f'"{restaurant_name}" {anchor} site:xiaohongshu.com',
+            f'"{restaurant_name}" {anchor} 小红书',
+        ]
+
+    elif region == REGION_MAINLAND:
+        # ===== 内地模式：四大厂商各 20% + 综合 20% =====
+        
+        # 大众点评（美团）：消费评价最全
+        queries["dianping"] = [
+            f'site:dianping.com "{restaurant_name}" {anchor}',
+            f'"{restaurant_name}" {anchor} 大众点评 评分',
+        ]
+
+        # 抖音（字节）：视频种草+本地生活
+        queries["douyin"] = [
+            f'"{restaurant_name}" {anchor} site:douyin.com',
+            f'"{restaurant_name}" {anchor} 抖音 推荐',
+        ]
+
+        # 小红书：种草内容
+        queries["xiaohongshu"] = [
+            f'"{restaurant_name}" {anchor} site:xiaohongshu.com',
+            f'"{restaurant_name}" {anchor} 小红书',
+        ]
+
+        # 高德（阿里本地生活）：到店+地图评价
+        queries["gaode"] = [
+            f'"{restaurant_name}" {anchor} site:amap.com OR site:gaode.com',
+            f'"{restaurant_name}" {anchor} 高德 评分',
+        ]
+
+        # 综合：新闻/旅游平台/微博等第三方视角
+        queries["general"] = [
+            f'"{restaurant_name}" {anchor} 评价 新闻',
+            f'"{restaurant_name}" {anchor} site:weibo.com OR site:ctrip.com',
+        ]
+
+    elif region == REGION_TAIWAN:
+        # ===== 台湾模式：复用港澳逻辑 =====
+        queries["openrice"] = [
+            f'site:openrice.com "{restaurant_name}" {anchor}',
+            f'"{restaurant_name}" {anchor} openrice',
+        ]
+        queries["google_maps"] = [
+            f'"{restaurant_name}" {anchor} Google Maps 评分',
+        ]
+        queries["tripadvisor"] = [
+            f'"{restaurant_name}" {anchor} tripadvisor 评分',
+        ]
+        queries["dianping"] = [
+            f'"{restaurant_name}" {anchor} 大众点评',
+        ]
+        queries["xiaohongshu"] = [
+            f'"{restaurant_name}" {anchor} 小红书',
+        ]
+
+    else:
+        # ===== 海外模式 =====
+        queries["google_maps"] = [
+            f'"{restaurant_name}" {anchor} Google Maps',
+        ]
+        queries["tripadvisor"] = [
+            f'"{restaurant_name}" {anchor} tripadvisor',
+        ]
+        queries["dianping"] = [
+            f'"{restaurant_name}" {anchor} 大众点评',
+        ]
+        queries["xiaohongshu"] = [
+            f'"{restaurant_name}" {anchor} 小红书',
+        ]
 
     return queries
 
@@ -759,16 +860,13 @@ def score_result(item: dict, target: dict, platform: str) -> float:
         score += 3
     if city_name in title or city_name in snippet or city_name in url:
         score += 2
-    # 平台权重：OpenRice 最高（香港本地最可信），TripAdvisor 最低（游客偏差大）
-    platform_weights = {
-        "openrice": 6,
-        "google_maps": 5,
-        "dianping": 4,
-        "xiaohongshu": 3,
-        "tripadvisor": 2,
-    }
+    # 平台权重：按区域动态取
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    platform_weights_map = REGION_PLATFORM_WEIGHTS.get(region, REGION_PLATFORM_WEIGHTS[REGION_MAINLAND])
+    # score_result 用的加分值 = 权重 * 30（保持和原来数量级一致）
+    platform_weight = platform_weights_map.get(platform, 0.15) * 30
     if any(d in domain for d in PLATFORM_DOMAINS.get(platform, [])):
-        score += platform_weights.get(platform, 3)
+        score += platform_weight
     if branch_candidates:
         if any(branch.lower() in text.lower() for branch in branch_candidates):
             score += 2
@@ -856,18 +954,237 @@ def format_result_line(item: dict) -> str:
     return f"- {title}\n  URL: {url}\n  摘要: {snippet}\n  命中质量: {quality:.1f}{tag}"
 
 
+def extract_platform_signals(results: list, platform: str) -> dict:
+    """
+    从搜索摘要中提取权威平台的硬指标（评分/评论数/价格/排名）。
+    
+    核心思路：不抓详情页（反爬严重），只解析搜索引擎返回的摘要（snippet）。
+    
+    OpenRice 摘要格式："4.5 | 11175 灣仔 $101-200 意大利菜 薄餅"
+    TripAdvisor 摘要格式："4.4分...排第914名...13,910家餐廳"
+    Google Maps 摘要格式："4.3(258)" 或 "Rated 4.3/5 based on 258 reviews"
+    
+    返回：{
+        "platform": str,
+        "rating": float or None,
+        "review_count": int or None,
+        "price_range": str or None,
+        "district": str or None,
+        "rank": str or None,
+        "data_completeness": float,  # 0.0 - 1.0
+        "missing_fields": list,
+    }
+    """
+    signals = {
+        "platform": platform,
+        "rating": None,
+        "review_count": None,
+        "price_range": None,
+        "district": None,
+        "rank": None,
+        "data_completeness": 0.0,
+        "missing_fields": [],
+    }
+    
+    # 合并所有结果的 title + snippet
+    combined_text = ""
+    for item in results:
+        combined_text += f" {item.get('title', '')} {item.get('snippet', '')}"
+    
+    if not combined_text.strip():
+        signals["missing_fields"] = ["rating", "review_count", "price_range", "rank"]
+        return signals
+    
+    found_fields = 0
+    total_fields = 4  # rating, review_count, price_range, rank
+    
+    # ===== OpenRice 解析 =====
+    if platform == "openrice":
+        # 格式："4.5 | 11175 灣仔 $101-200"
+        or_pattern = re.compile(r'(\d+\.\d+)\s*\|\s*(\d+)\s+(\S+)\s+(\$\d+(?:-\d+)?)')
+        match = or_pattern.search(combined_text)
+        if match:
+            signals["rating"] = float(match.group(1))
+            signals["review_count"] = int(match.group(2))
+            signals["district"] = match.group(3)
+            signals["price_range"] = match.group(4)
+            found_fields += 3  # rating + review_count + price_range
+        else:
+            # 降级：仅提取评分
+            rating_match = re.search(r'(\d+\.\d+)\s*\|', combined_text)
+            if rating_match:
+                signals["rating"] = float(rating_match.group(1))
+                found_fields += 1
+            # 降级：仅提取价格
+            price_match = re.search(r'\$(\d+)(?:-(\d+))?', combined_text)
+            if price_match:
+                signals["price_range"] = price_match.group(0)
+                found_fields += 1
+    
+    # ===== TripAdvisor 解析 =====
+    elif platform == "tripadvisor":
+        # 格式1 中文："4.4分...40則則評論...排第914名...13,910家餐廳"
+        # 格式2 英文："rated 4.0 of 5...40 unbiased reviews...ranked #9,991 of 13,886"
+        rating_match = re.search(r'(\d+\.\d+)\s*分|rated\s+(\d+\.\d+)\s*of\s*5', combined_text, re.IGNORECASE)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1) or rating_match.group(2))
+            found_fields += 1
+        
+        review_match = re.search(r'(\d+).*?評論|(\d+)\s*unbiased\s*reviews|(\d+)\s*reviews', combined_text, re.IGNORECASE)
+        if review_match:
+            count_str = review_match.group(1) or review_match.group(2) or review_match.group(3)
+            signals["review_count"] = int(count_str)
+            found_fields += 1
+        
+        # 中文排名："排第914名"
+        rank_match = re.search(r'排第\s*(\d+)\s*名', combined_text)
+        if rank_match:
+            rank_num = rank_match.group(1)
+            total_match = re.search(r'([\d,]+)\s*家餐廳|([\d,]+)\s*restaurants', combined_text, re.IGNORECASE)
+            if total_match:
+                total_str = (total_match.group(1) or total_match.group(2)).replace(",", "")
+                signals["rank"] = f"第{rank_num}/{total_str}名"
+            else:
+                signals["rank"] = f"第{rank_num}名"
+            found_fields += 1
+        else:
+            # 英文排名："ranked #9,991 of 13,886"
+            rank_match_en = re.search(r'ranked\s*#?([\d,]+)\s*of\s*([\d,]+)', combined_text, re.IGNORECASE)
+            if rank_match_en:
+                r = rank_match_en.group(1).replace(",", "")
+                t = rank_match_en.group(2).replace(",", "")
+                signals["rank"] = f"第{r}/{t}名"
+                found_fields += 1
+        
+        price_match = re.search(r'\$(\d+)(?:-(\d+))?', combined_text)
+        if price_match:
+            signals["price_range"] = price_match.group(0)
+    
+    # ===== Google Maps 解析 =====
+    elif platform == "google_maps":
+        # 格式："4.3(258)" 或 "Rated 4.3/5" 或 "4.3 · 258 reviews"
+        rating_match = re.search(r'(\d+\.\d+)\s*(?:/\s*5|\s*·|\()', combined_text)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1))
+            found_fields += 1
+        
+        # 评论数：(258) 或 "258 reviews" 或 "258则评论"
+        review_match = re.search(r'\((\d[\d,]*)\)|(\d[\d,]*)\s*(?:reviews|则|條)', combined_text, re.IGNORECASE)
+        if review_match:
+            count_str = review_match.group(1) or review_match.group(2)
+            signals["review_count"] = int(count_str.replace(",", ""))
+            found_fields += 1
+        
+        price_match = re.search(r'\$\d+(?:-\d+)?|HKD\s*\d+', combined_text)
+        if price_match:
+            signals["price_range"] = price_match.group(0)
+    
+    # ===== 大众点评解析 =====
+    elif platform == "dianping":
+        rating_match = re.search(r'(\d+\.\d+)\s*分', combined_text)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1))
+            found_fields += 1
+        
+        review_match = re.search(r'(\d+)\s*条?\s*评论', combined_text)
+        if review_match:
+            signals["review_count"] = int(review_match.group(1))
+            found_fields += 1
+        
+        price_match = re.search(r'人均[：:]?\s*[¥￥$]?\s*(\d+)', combined_text)
+        if price_match:
+            signals["price_range"] = f"¥{price_match.group(1)}"
+            found_fields += 1
+    
+    # ===== 抖音解析 =====
+    elif platform == "douyin":
+        # 抖音搜索摘要通常没有结构化评分，尝试提取
+        rating_match = re.search(r'(\d+\.\d+)\s*分', combined_text)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1))
+            found_fields += 1
+        
+        # 抖音常见格式：播放量/点赞数
+        like_match = re.search(r'(\d+(?:\.\d+)?)\s*万?\s*(?:赞|点赞|喜欢)', combined_text)
+        if like_match:
+            like_str = like_match.group(1)
+            if '万' in combined_text[like_match.start():like_match.start()+20]:
+                signals["review_count"] = int(float(like_str) * 10000)
+            else:
+                signals["review_count"] = int(float(like_str))
+            found_fields += 1
+        
+        price_match = re.search(r'人均[：:]?\s*[¥￥$]?\s*(\d+)', combined_text)
+        if price_match:
+            signals["price_range"] = f"¥{price_match.group(1)}"
+            found_fields += 1
+    
+    # ===== 高德解析 =====
+    elif platform == "gaode":
+        rating_match = re.search(r'(\d+\.\d+)\s*分', combined_text)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1))
+            found_fields += 1
+        
+        # 评论数/评价数
+        review_match = re.search(r'(\d+)\s*[条口]评价', combined_text)
+        if review_match:
+            signals["review_count"] = int(review_match.group(1))
+            found_fields += 1
+        
+        price_match = re.search(r'人均[：:]?\s*[¥￥$]?\s*(\d+)', combined_text)
+        if price_match:
+            signals["price_range"] = f"¥{price_match.group(1)}"
+            found_fields += 1
+    
+    # ===== 综合搜索解析（新闻/旅游/微博）=====
+    elif platform == "general":
+        # 综合搜索以定性信号为主，尝试提取评分
+        rating_match = re.search(r'(\d+\.\d+)\s*分', combined_text)
+        if rating_match:
+            signals["rating"] = float(rating_match.group(1))
+            found_fields += 1
+        
+        price_match = re.search(r'人均[：:]?\s*[¥￥$]?\s*(\d+)', combined_text)
+        if price_match:
+            signals["price_range"] = f"¥{price_match.group(1)}"
+            found_fields += 1
+    
+    # 计算数据完整度
+    signals["data_completeness"] = round(found_fields / total_fields, 2)
+    
+    # 标记缺失字段
+    if signals["rating"] is None:
+        signals["missing_fields"].append("rating")
+    if signals["review_count"] is None:
+        signals["missing_fields"].append("review_count")
+    if signals["price_range"] is None:
+        signals["missing_fields"].append("price_range")
+    if signals["rank"] is None and platform in ["tripadvisor"]:
+        signals["missing_fields"].append("rank")
+    
+    return signals
+
+
 def collect_search_bundle(target: dict) -> dict:
+    """
+    搜索策略入口：
+    1. 权威平台精准搜索 → 解析摘要提取硬指标
+    2. 如果关键数据缺失，补搜一轮
+    3. 社交平台搜索（热度参考）
+    """
     queries = platform_queries(target)
+    city = target.get("city", "香港")
     bundle = {
         "target": target,
         "platforms": {},
+        "platform_signals": {},  # 新增：摘要提取的硬指标
     }
 
-    city_name = target.get("city", "")
     for platform, query_list in queries.items():
         best_summary = None
         for query in query_list:
-            raw_results = search_web(query, platform=platform, city=city_name)
+            raw_results = search_web(query, platform=platform, city=city)
             filtered = filter_platform_results(raw_results, target, platform)
             summary = summarize_platform_result(platform, query, filtered)
             if not best_summary or summary["signal_strength"] > best_summary["signal_strength"]:
@@ -875,17 +1192,106 @@ def collect_search_bundle(target: dict) -> dict:
             if summary["signal_strength"] == "high":
                 break
         bundle["platforms"][platform] = best_summary or summarize_platform_result(platform, query_list[0], [])
+        
+        # 从搜索摘要中提取硬指标
+        filtered_results = best_summary.get("results", []) if best_summary else []
+        signals = extract_platform_signals(filtered_results, platform)
+        bundle["platform_signals"][platform] = signals
+    
+    # ===== 补搜策略：关键数据缺失时追加搜索 =====
+    # 根据区域判断权威平台
+    region = CITY_REGIONS.get(city, REGION_MAINLAND)
+    if region == REGION_MAINLAND:
+        authority_platforms = ["dianping", "douyin", "xiaohongshu", "gaode"]
+    elif region == REGION_HK_MACAU:
+        authority_platforms = ["openrice", "google_maps", "tripadvisor"]
+    else:
+        authority_platforms = ["google_maps"]
+    
+    has_any_rating = any(
+        bundle["platform_signals"].get(p, {}).get("rating") is not None
+        for p in authority_platforms
+    )
+    
+    if not has_any_rating:
+        # 补搜：用更宽泛的关键词
+        restaurant_name = target["brand_name"]
+        anchor = target.get("branch_candidates", [city])[0]
+        
+        bonus_query = f'{restaurant_name} {anchor} 評分 review rating'
+        bonus_results = search_web(bonus_query, city=city)
+        bonus_filtered = filter_platform_results(bonus_results, target, "generic")
+        
+        # 尝试从补搜结果中提取信号
+        for item in bonus_filtered:
+            url = item.get("url", "")
+            snippet = item.get("snippet", "")
+            title = item.get("title", "")
+            combined = f"{title} {snippet}"
+            
+            # 识别是哪个平台的结果
+            detected_platform = None
+            if "openrice.com" in url:
+                detected_platform = "openrice"
+            elif "tripadvisor" in url:
+                detected_platform = "tripadvisor"
+            elif "google.com/maps" in url or "google.com" in url:
+                detected_platform = "google_maps"
+            elif "dianping.com" in url:
+                detected_platform = "dianping"
+            elif "douyin.com" in url:
+                detected_platform = "douyin"
+            elif "amap.com" in url or "gaode.com" in url:
+                detected_platform = "gaode"
+            elif "xiaohongshu.com" in url:
+                detected_platform = "xiaohongshu"
+            
+            if detected_platform and bundle["platform_signals"].get(detected_platform, {}).get("rating") is None:
+                new_signals = extract_platform_signals([item], detected_platform)
+                # 如果新提取到评分，覆盖之前的空信号
+                if new_signals["rating"] is not None:
+                    bundle["platform_signals"][detected_platform] = new_signals
+    
     return bundle
+
+
+def _get_display_name(platform: str, city_name: str = "") -> str:
+    """根据区域获取平台显示名"""
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    names = REGION_DISPLAY_NAMES.get(region, PLATFORM_DISPLAY_NAMES)
+    return names.get(platform, platform)
+
+
+def _get_platform_domains(platform: str, city_name: str = "") -> list:
+    """根据区域获取平台域名列表"""
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    domains_map = REGION_DOMAINS.get(region, PLATFORM_DOMAINS)
+    return domains_map.get(platform, [])
+
+
+def _get_region_label(city_name: str) -> str:
+    """获取区域模式中文标签"""
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    labels = {
+        REGION_HK_MACAU: "🇭🇰 港澳模式",
+        REGION_MAINLAND: "🇨🇳 内地模式",
+        REGION_TAIWAN: "🇹🇼 台湾模式",
+        REGION_OVERSEAS: "🌍 海外模式",
+    }
+    return labels.get(region, "🇨🇳 内地模式")
 
 
 def format_search_bundle(bundle: dict) -> str:
     target = bundle["target"]
     strong = []
     weak = []
+    platform_signals = bundle.get("platform_signals", {})
+    
     lines = [
         "## 目标门店定位",
         f"- 用户输入：{target['input_name']}",
         f"- 城市：{target['city']}",
+        f"- 区域模式：{_get_region_label(target['city'])}",
         f"- 判定：{'品牌/连锁型输入' if target['is_chain_like'] else '更像单店输入'}",
         f"- 疑似分店锚点：{', '.join(target.get('branch_candidates', [])) if target.get('branch_candidates') else '未识别到'}",
         f"- 定位置信度：{target['confidence']}",
@@ -893,8 +1299,9 @@ def format_search_bundle(bundle: dict) -> str:
         "",
         "## 检索概览",
     ]
+    city_name = target.get("city", "")
     for platform, summary in bundle.get("platforms", {}).items():
-        name = PLATFORM_DISPLAY_NAMES.get(platform, platform)
+        name = _get_display_name(platform, city_name)
         if summary.get("signal_strength") in ["high", "medium"]:
             strong.append(name)
         else:
@@ -902,9 +1309,51 @@ def format_search_bundle(bundle: dict) -> str:
 
     lines.append(f"- 高命中平台：{', '.join(strong) if strong else '无'}")
     lines.append(f"- 弱命中/无命中平台：{', '.join(weak) if weak else '无'}")
+    
+    # 摘要硬指标汇总
+    lines.append("")
+    lines.append("## 摘要提取硬指标")
+    for platform, sig in platform_signals.items():
+        name = _get_display_name(platform, city_name)
+        parts = []
+        if sig.get("rating") is not None:
+            parts.append(f"⭐{sig['rating']}")
+        if sig.get("review_count") is not None:
+            parts.append(f"💬{sig['review_count']:,}")
+        if sig.get("price_range") is not None:
+            parts.append(f"💰{sig['price_range']}")
+        if sig.get("rank") is not None:
+            parts.append(f"🏅{sig['rank']}")
+        if sig.get("district") is not None:
+            parts.append(f"📍{sig['district']}")
+        
+        if parts:
+            lines.append(f"- {name}：{' | '.join(parts)}（完整度 {sig.get('data_completeness', 0):.0%}）")
+        else:
+            lines.append(f"- {name}：未提取到量化数据")
+    
+    # 数据完整度总评
+    region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
+    if region == REGION_MAINLAND:
+        authority_keys = ["dianping", "douyin", "xiaohongshu", "gaode"]
+    elif region == REGION_HK_MACAU:
+        authority_keys = ["openrice", "google_maps", "tripadvisor"]
+    else:
+        authority_keys = ["google_maps", "tripadvisor", "openrice"]
+    
+    authority_data = {p: platform_signals.get(p, {}) for p in authority_keys if platform_signals.get(p)}
+    completeness_values = [d.get("data_completeness", 0) for d in authority_data.values()]
+    avg_completeness = sum(completeness_values) / len(completeness_values) if completeness_values else 0
+    
+    if avg_completeness >= 0.7:
+        lines.append(f"\n📊 整体完整度：{avg_completeness:.0%} ✅ 权威数据充分，结论可信")
+    elif avg_completeness >= 0.3:
+        lines.append(f"\n📊 整体完整度：{avg_completeness:.0%} ⚠️ 部分数据缺失，结论仅供参考")
+    else:
+        lines.append(f"\n📊 整体完整度：{avg_completeness:.0%} 🔴 数据严重不足，结论不可靠")
 
     for platform, summary in bundle.get("platforms", {}).items():
-        name = PLATFORM_DISPLAY_NAMES.get(platform, platform)
+        name = _get_display_name(platform, city_name)
 
         lines.append(f"\n### {name}")
         lines.append(f"查询：{summary.get('query_used', '')}")
@@ -934,9 +1383,11 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
     city = target.get("city", "")
     restaurant = target.get("brand_name", "")
 
-    # ===== 1. 线索猎犬：平台证据汇总 =====
+    # ===== 1. 线索猎犬：平台证据汇总（含摘要硬指标）=====
     platform_scores = {}
     platform_reviews = {}
+    platform_signals = search_bundle.get("platform_signals", {})
+    
     for pkey, summary in platforms.items():
         if summary and summary.get("matched"):
             top = summary.get("top_result", {})
@@ -949,25 +1400,90 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
         search_lines.append(f"分店线索：{', '.join(target['branch_candidates'])}")
 
     for pkey, summary in platforms.items():
-        name = PLATFORM_DISPLAY_NAMES.get(pkey, pkey)
+        name = _get_display_name(pkey, city)
+        sig = platform_signals.get(pkey, {})
+        
+        # 构建硬指标行
+        hard_data = ""
+        if sig.get("rating"):
+            hard_data += f"⭐{sig['rating']}"
+        if sig.get("review_count"):
+            hard_data += f" 💬{sig['review_count']:,}"
+        if sig.get("price_range"):
+            hard_data += f" 💰{sig['price_range']}"
+        if sig.get("rank"):
+            hard_data += f" 🏅{sig['rank']}"
+        
         if summary and summary.get("matched"):
             strength = summary.get("signal_strength", "low")
             top = summary.get("top_result", {})
             snippet = (top.get("snippet", "") or "")[:80]
-            search_lines.append(f"- {name}：信号强度 {strength} | 质量分 {top.get('quality_score', 0):.1f} | {snippet}...")
+            if hard_data:
+                search_lines.append(f"- {name}：{hard_data} | 信号 {strength} | {snippet}...")
+            else:
+                search_lines.append(f"- {name}：信号强度 {strength} | 质量分 {top.get('quality_score', 0):.1f} | {snippet}...")
         else:
             search_lines.append(f"- {name}：未命中高质量结果")
+    
+    # 数据完整度总结
+    region = CITY_REGIONS.get(city, REGION_MAINLAND)
+    if region == REGION_MAINLAND:
+        authority_keys = ["dianping", "douyin", "xiaohongshu", "gaode"]
+    elif region == REGION_HK_MACAU:
+        authority_keys = ["openrice", "google_maps", "tripadvisor"]
+    else:
+        authority_keys = ["google_maps", "tripadvisor", "openrice"]
+    authority_data = {p: platform_signals.get(p, {}) for p in authority_keys if platform_signals.get(p)}
+    completeness_values = [d.get("data_completeness", 0) for d in authority_data.values()]
+    avg_completeness = sum(completeness_values) / len(completeness_values) if completeness_values else 0
+    
+    if avg_completeness >= 0.7:
+        search_lines.append(f"\n📊 数据完整度：{avg_completeness:.0%} — 权威平台数据较充分")
+    elif avg_completeness >= 0.3:
+        search_lines.append(f"\n📊 数据完整度：{avg_completeness:.0%} — 部分关键数据缺失，结论仅供参考")
+    else:
+        search_lines.append(f"\n📊 数据完整度：{avg_completeness:.0%} — 权威数据严重不足，结论不可靠")
+    
+    # 缺失字段汇总
+    all_missing = set()
+    for sig in platform_signals.values():
+        all_missing.update(sig.get("missing_fields", []))
+    if all_missing:
+        field_names = {"rating": "评分", "review_count": "评论数", "price_range": "价格", "rank": "排名"}
+        missing_names = [field_names.get(f, f) for f in all_missing]
+        search_lines.append(f"⚠️ 缺失项：{', '.join(missing_names)}")
 
     expert_search = "\n".join(search_lines)
 
-    # ===== 2. 拆台师：跨平台矛盾检测 =====
+    # ===== 2. 拆台师：跨平台矛盾检测（含评分对比）=====
     contradictions = []
     scores = {}
     for pkey, summary in platforms.items():
         if summary and summary.get("matched"):
             scores[pkey] = summary.get("signal_strength", "low")
 
-    # 评分不一致
+    # ⭐ 核心新增：基于摘要硬指标的评分矛盾检测
+    ratings_from_signals = {}
+    for pkey, sig in platform_signals.items():
+        if sig.get("rating") is not None:
+            ratings_from_signals[pkey] = sig["rating"]
+    
+    if len(ratings_from_signals) >= 2:
+        rating_values = list(ratings_from_signals.values())
+        rating_range = max(rating_values) - min(rating_values)
+        rating_platforms = [f"{_get_display_name(k, city)}({v})" for k, v in ratings_from_signals.items()]
+        
+        if rating_range >= 0.8:
+            contradictions.append(f"⚠️ 跨平台评分差异大（{rating_range:.1f}分）：{', '.join(rating_platforms)}，需警惕")
+        elif rating_range >= 0.3:
+            contradictions.append(f"跨平台评分存在差异（{rating_range:.1f}分）：{', '.join(rating_platforms)}")
+        else:
+            contradictions.append(f"跨平台评分基本一致（差异{rating_range:.1f}分）：{', '.join(rating_platforms)}")
+    elif len(ratings_from_signals) == 1:
+        p, r = list(ratings_from_signals.items())[0]
+        contradictions.append(f"仅 {_get_display_name(p, city)} 有评分（{r}），缺少交叉验证")
+
+    # 信号强度不一致
     strengths = list(scores.values())
     if strengths:
         high_count = sum(1 for s in strengths if s == "high")
@@ -1020,41 +1536,145 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
 
     # OpenRice 评论
     or_summary = platforms.get("openrice")
-    if or_summary and or_summary.get("matched"):
-        review_quality.append("OpenRice 有本地用户评分，评论通常包含具体菜品描述，可信度较高")
+    or_sig = platform_signals.get("openrice", {})
+    if or_sig.get("rating") is not None:
+        or_line = f"OpenRice 评分 {or_sig['rating']}/5"
+        if or_sig.get("review_count"):
+            or_line += f"（{or_sig['review_count']:,} 条评论）"
+        or_line += " — 香港本地食客视角，可信度高"
+        review_quality.append(or_line)
+    elif or_summary and or_summary.get("matched"):
+        review_quality.append("OpenRice 有信号但未提取到评分/评论数，缺少量化指标")
     else:
-        review_quality.append("OpenRice 未命中或信号弱，缺少香港本地食客视角")
+        review_quality.append("⚠️ OpenRice 无信号 — 缺少香港本地食客视角，验证基础薄弱")
 
     # TripAdvisor 评论
     ta_summary = platforms.get("tripadvisor")
-    if ta_summary and ta_summary.get("matched"):
-        review_quality.append("TripAdvisor 以游客评价为主，可能存在'旅行滤镜'，参考价值有限")
+    ta_sig = platform_signals.get("tripadvisor", {})
+    if ta_sig.get("rating") is not None:
+        ta_line = f"TripAdvisor 评分 {ta_sig['rating']}/5"
+        if ta_sig.get("review_count"):
+            ta_line += f"（{ta_sig['review_count']} 条评论）"
+        if ta_sig.get("rank"):
+            ta_line += f"，排名 {ta_sig['rank']}"
+        ta_line += " — 以游客评价为主，参考价值有限"
+        review_quality.append(ta_line)
+    elif ta_summary and ta_summary.get("matched"):
+        review_quality.append("TripAdvisor 有信号但未提取到量化指标")
+    
+    # Google Maps 评论
+    gm_sig = platform_signals.get("google_maps", {})
+    if gm_sig.get("rating") is not None:
+        gm_line = f"Google Maps 评分 {gm_sig['rating']}/5"
+        if gm_sig.get("review_count"):
+            gm_line += f"（{gm_sig['review_count']:,} 条评论）"
+        gm_line += " — 全球通用，评分相对客观"
+        review_quality.append(gm_line)
 
     expert_review = "\n".join([f"- {r}" for r in review_quality]) if review_quality else "- 评论样本不足，无法判断质量"
 
-    # ===== 4. 街坊雷达：本地认可度 =====
+    # ===== 4. 街坊雷达：本地认可度（含评分硬指标）=====
     local_signals = []
+    region = CITY_REGIONS.get(city, REGION_MAINLAND)
     has_openrice = platforms.get("openrice") and platforms.get("openrice").get("matched")
     has_dianping = platforms.get("dianping") and platforms.get("dianping").get("matched")
     has_xhs = platforms.get("xiaohongshu") and platforms.get("xiaohongshu").get("matched")
     has_ta = platforms.get("tripadvisor") and platforms.get("tripadvisor").get("matched")
+    has_douyin = platforms.get("douyin") and platforms.get("douyin").get("matched")
+    
+    or_sig = platform_signals.get("openrice", {})
+    gm_sig = platform_signals.get("google_maps", {})
+    ta_sig = platform_signals.get("tripadvisor", {})
+    dp_sig = platform_signals.get("dianping", {})
+    dy_sig = platform_signals.get("douyin", {})
 
-    if has_openrice:
-        local_signals.append("OpenRice 有信号 → 香港本地食客有讨论")
-    else:
-        local_signals.append("OpenRice 无信号 → 本地食客讨论度低")
+    if region == REGION_HK_MACAU:
+        # 港澳：OpenRice 是本地认可度核心指标
+        if or_sig.get("rating") is not None:
+            or_line = f"OpenRice {or_sig['rating']}/5"
+            if or_sig.get("review_count"):
+                or_line += f"（{or_sig['review_count']:,}条评论）"
+            or_line += " → 本地食客认可"
+            local_signals.append(or_line)
+        elif has_openrice:
+            local_signals.append("OpenRice 有信号但无量化评分 → 本地讨论度存在，但无法量化")
+        else:
+            local_signals.append("⚠️ OpenRice 无信号 → 本地食客讨论度低，可能是游客店或新店")
+    elif region == REGION_MAINLAND:
+        # 内地：大众点评是本地认可度核心指标
+        if dp_sig.get("rating") is not None:
+            dp_line = f"大众点评 {dp_sig['rating']}/5"
+            if dp_sig.get("review_count"):
+                dp_line += f"（{dp_sig['review_count']:,}条评论）"
+            dp_line += " → 消费者真实评价"
+            local_signals.append(dp_line)
+        elif has_dianping:
+            local_signals.append("大众点评有信号但无量化评分 → 讨论度存在，但无法量化")
+        else:
+            local_signals.append("⚠️ 大众点评无信号 → 消费者讨论度低，可能是新店或冷门店")
+        
+        # 抖音信号
+        if dy_sig.get("rating") is not None:
+            dy_line = f"抖音 {dy_sig['rating']}/5"
+            if dy_sig.get("review_count"):
+                dy_line += f"（{dy_sig['review_count']:,}赞）"
+            dy_line += " → 视频种草热度"
+            local_signals.append(dy_line)
+        elif has_douyin:
+            local_signals.append("抖音有信号 → 视频种草存在，需注意营销密度")
 
-    if has_dianping:
+    if gm_sig.get("rating") is not None:
+        gm_line = f"Google Maps {gm_sig['rating']}/5"
+        if gm_sig.get("review_count"):
+            gm_line += f"（{gm_sig['review_count']:,}条）"
+        local_signals.append(gm_line)
+
+    if has_dianping and region == REGION_HK_MACAU:
         local_signals.append("大众点评有信号 → 内地游客有关注")
 
-    if has_xhs and not has_openrice:
-        local_signals.append("小红书热度高但 OpenRice 信号弱 → 更可能是'游客热'而非'本地认可'")
-    elif has_xhs and has_openrice:
-        local_signals.append("小红书 + OpenRice 双平台有信号 → 游客和本地都有一定认可")
-
-    if has_ta and not has_openrice:
-        local_signals.append("TripAdvisor 有信号但 OpenRice 弱 → 纯游客店特征明显")
-
+    # 关键判断：本地认可 vs 游客热度（按区域不同逻辑）
+    if region == REGION_HK_MACAU:
+        or_has_data = or_sig.get("rating") is not None
+        xhs_has_data = has_xhs
+        ta_has_data = ta_sig.get("rating") is not None
+        
+        if xhs_has_data and not or_has_data:
+            local_signals.append("🔴 小红书热度高但 OpenRice 无评分 → 更可能是'游客热'而非'本地认可'")
+        elif xhs_has_data and or_has_data:
+            local_signals.append("🟢 小红书 + OpenRice 双平台有评分 → 游客和本地都有一定认可")
+        
+        if ta_has_data and not or_has_data:
+            local_signals.append("🟡 TripAdvisor 有评分但 OpenRice 无 → 纯游客店特征明显")
+        
+        # 评分差距判断
+        if or_sig.get("rating") and ta_sig.get("rating"):
+            diff = or_sig["rating"] - ta_sig["rating"]
+            if diff >= 0.5:
+                local_signals.append(f"本地评分({or_sig['rating']})高于游客评分({ta_sig['rating']}) → 本地人更认可")
+            elif diff <= -0.5:
+                local_signals.append(f"游客评分({ta_sig['rating']})高于本地评分({or_sig['rating']}) → 可能被游客滤镜抬高")
+    
+    elif region == REGION_MAINLAND:
+        dp_has_data = dp_sig.get("rating") is not None
+        xhs_has_data = has_xhs
+        dy_has_data = has_douyin
+        
+        if xhs_has_data and not dp_has_data:
+            local_signals.append("🔴 小红书热度高但大众点评无评分 → 更可能是'种草热'而非'消费认可'")
+        elif xhs_has_data and dp_has_data:
+            local_signals.append("🟢 小红书 + 大众点评双平台有评分 → 种草和消费评价都有")
+        
+        if dy_has_data and not dp_has_data:
+            local_signals.append("🟡 抖音有热度但大众点评无评分 → 视频营销盘特征")
+        
+        # 评分差距判断（大众点评 vs 小红书情绪）
+        if dp_sig.get("rating") and gm_sig.get("rating"):
+            diff = dp_sig["rating"] - gm_sig["rating"]
+            if diff >= 0.5:
+                local_signals.append(f"大众点评({dp_sig['rating']})高于 Google Maps({gm_sig['rating']}) → 国内消费者更认可")
+            elif diff <= -0.5:
+                local_signals.append(f"Google Maps({gm_sig['rating']})高于大众点评({dp_sig['rating']}) → 国际视角与国内评价分歧")
+    
     if target.get("is_chain_like"):
         local_signals.append("品牌/连锁型 → 标准化出品，但可能缺乏单店特色")
 
@@ -1098,24 +1718,34 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
 
     expert_scene = "\n".join([f"- {s}" for s in scene_lines])
 
-    # ===== 6. 收口官：综合裁决 =====
-    # 计算加权综合分
+    # ===== 6. 收口官：综合裁决（含评分量化 + 数据完整度）=====
+    # 优先使用摘要提取的真实评分，降级使用信号强度
     weighted_score = 0
     total_weight = 0
-    platform_weights_judge = {
-        "openrice": 0.30,
-        "google_maps": 0.25,
-        "dianping": 0.20,
-        "xiaohongshu": 0.15,
-        "tripadvisor": 0.10,
-    }
-    for pkey, summary in platforms.items():
-        if summary and summary.get("matched"):
+    # 根据区域动态获取平台权重
+    region = CITY_REGIONS.get(city, REGION_MAINLAND)
+    platform_weights_judge = REGION_PLATFORM_WEIGHTS.get(region, REGION_PLATFORM_WEIGHTS[REGION_MAINLAND])
+    
+    # 量化评分：将真实评分归一化到 0-1 区间
+    has_real_rating = False
+    for pkey, sig in platform_signals.items():
+        if sig.get("rating") is not None:
             weight = platform_weights_judge.get(pkey, 0.15)
-            strength_map = {"high": 1.0, "medium": 0.6, "low": 0.2}
-            signal_val = strength_map.get(summary.get("signal_strength", "low"), 0.2)
-            weighted_score += signal_val * weight
+            # 评分归一化：5分制 → 0-1（3.0以下算0，5.0算1）
+            normalized = max(0, min(1, (sig["rating"] - 3.0) / 2.0))
+            weighted_score += normalized * weight
             total_weight += weight
+            has_real_rating = True
+    
+    # 降级：没有真实评分时用信号强度
+    if not has_real_rating:
+        for pkey, summary in platforms.items():
+            if summary and summary.get("matched"):
+                weight = platform_weights_judge.get(pkey, 0.15)
+                strength_map = {"high": 1.0, "medium": 0.6, "low": 0.2}
+                signal_val = strength_map.get(summary.get("signal_strength", "low"), 0.2)
+                weighted_score += signal_val * weight
+                total_weight += weight
 
     if total_weight > 0:
         final_score = weighted_score / total_weight
@@ -1157,18 +1787,45 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
             risk_tags.append("网红过热")
     if target.get("is_chain_like"):
         risk_tags.append("连锁标准化")
-    if not (platforms.get("openrice") and platforms.get("openrice").get("matched")):
+    if not (platforms.get("openrice") and platforms.get("openrice").get("matched")) and \
+       not (platforms.get("dianping") and platforms.get("dianping").get("matched")):
         risk_tags.append("本地认可度不明")
     if target.get("branch_candidates"):
         risk_tags.append("多分店体验差异")
+    
+    # 数据完整度风险
+    authority_data = {p: platform_signals.get(p, {}) for p in authority_keys if platform_signals.get(p)}
+    completeness_values = [d.get("data_completeness", 0) for d in authority_data.values()]
+    avg_completeness = sum(completeness_values) / len(completeness_values) if completeness_values else 0
+    
+    if avg_completeness < 0.3:
+        risk_tags.append("⚠️ 数据严重不足")
+    elif avg_completeness < 0.6:
+        risk_tags.append("数据部分缺失")
+    
+    # 跨平台评分冲突
+    ratings_from_signals = {p: sig["rating"] for p, sig in platform_signals.items() if sig.get("rating") is not None}
+    if len(ratings_from_signals) >= 2:
+        rating_range = max(ratings_from_signals.values()) - min(ratings_from_signals.values())
+        if rating_range >= 0.8:
+            risk_tags.append("跨平台评分冲突")
 
     judge_lines = [
-        f"综合评分：{final_score:.2f}/1.00（OpenRice 权重最高，TripAdvisor 权重最低）",
+        f"综合评分：{final_score:.2f}/1.00（{'基于真实评分量化' if has_real_rating else '仅基于信号强度，无量化评分'}）",
+        f"数据完整度：{avg_completeness:.0%}（{'充分' if avg_completeness >= 0.7 else '部分缺失' if avg_completeness >= 0.3 else '严重不足'}）",
+    ]
+    
+    # 列出各平台评分
+    if ratings_from_signals:
+        rating_parts = [f"{_get_display_name(p, city)} {r}" for p, r in ratings_from_signals.items()]
+        judge_lines.append(f"各平台评分：{' / '.join(rating_parts)}")
+    
+    judge_lines.extend([
         f"裁决：{verdict}",
         f"踩雷风险：{risk}",
         f"置信度：{confidence}",
         f"风险标签：{', '.join(risk_tags) if risk_tags else '无明显风险标签'}",
-    ]
+    ])
 
     # 适合谁 / 不适合谁
     if verdict == "值得去":
@@ -1299,15 +1956,16 @@ class FoodBuddyMVP:
 
 
 def interactive_mode():
-    print("=" * 60)
-    print("🍽️ 食通天 FoodBuddy — 餐厅防踩雷验证工具")
-    print("=" * 60)
-    print("\n由 OpenClaw Agent 驱动，使用内置搜索与 LLM 能力。\n")
-
     mvp = FoodBuddyMVP()
 
-    print("先输入城市，再输入你想验证的餐厅。")
-    print("示例：香港 → 正斗，我想知道值不值得专门去\n")
+    print("🍴 老饕探案组已就位")
+    print()
+    print("哪家店？说城市和店名，我帮你验一验。")
+    print()
+    print("⚠️  跨平台搜索 + 营销过滤，尽力拼凑真相。拿不到的直说，不硬判。")
+    print("（*即使搜到了也不敢打包票，hhh*）")
+    print()
+    print("我会跨平台采集证据、交叉验证，30 秒左右给你结论。\n")
 
     waiting_for_restaurant = False
 
@@ -1327,9 +1985,9 @@ def interactive_mode():
                     mvp.set_city(user_input)
                     waiting_for_restaurant = True
                     print(f"\n📍 已设置城市：{city_name}")
-                    print("请输入你想验证的餐厅名，或者加一句你担心什么。")
+                    print("说店名，担心什么也一并讲。")
                 else:
-                    print("\n请先输入支持的城市，例如：香港、东京、曼谷、首尔")
+                    print(f"\n暂不支持「{user_input}」，目前支持内地主要城市 + 港澳。")
                 continue
 
             if waiting_for_restaurant:
@@ -1367,10 +2025,10 @@ def interactive_mode():
                         if key in expert_outputs:
                             print(f"\n### {title}\n{expert_outputs[key]}")
 
-                print("\n你可以继续输入另一家店名继续验证，或输入 exit 退出。")
+                print("\n还有哪家想验？直接说，或 exit 退出。")
 
         except KeyboardInterrupt:
-            print("\n\n下次见！")
+            print("\n\n下次见，愿你少踩雷。")
             break
         except Exception as e:
             print(f"\n❌ 出错了：{e}")
