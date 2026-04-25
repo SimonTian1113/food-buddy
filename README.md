@@ -143,6 +143,7 @@ food-buddy/
 │   │   ├── scene-matcher.md    # 场景裁剪师
 │   │   └── judge.md            # 收口官
 │   ├── host_hongkong.md        # 香港城市 host
+│   ├── host_macau.md           # 澳门城市 host
 │   ├── host_tokyo.md           # 东京城市 host
 │   ├── host_seoul.md           # 首尔城市 host
 │   └── host_bangkok.md         # 曼谷城市 host

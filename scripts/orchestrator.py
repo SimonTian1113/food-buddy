@@ -22,6 +22,10 @@ CITIES = {
     "香港": "hongkong",
     "Hong Kong": "hongkong",
     "hk": "hongkong",
+    "澳门": "macau",
+    "Macau": "macau",
+    "macao": "macau",
+    "mo": "macau",
     "曼谷": "bangkok",
     "Bangkok": "bangkok",
     "bkk": "bangkok",
@@ -37,6 +41,7 @@ PLATFORM_DISPLAY_NAMES = {
     "dianping": "大众点评",
     "xiaohongshu": "小红书",
     "openrice": "OpenRice",
+    "tripadvisor": "TripAdvisor",
 }
 PLATFORM_DOMAINS = {
     "google_maps": ["google.com", "maps.google.com"],
@@ -205,6 +210,9 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     if city == "香港":
         # setmkt=zh-HK = 香港市场, setlang=zh-Hant = 繁体中文
         bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
+    elif city == "澳门":
+        # 澳门市场，繁体中文（Bing 无 zh-MO，用 zh-HK 近似）
+        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
     elif city == "东京":
         bing_region_params = "&setmkt=ja-JP&setlang=ja"
     elif city == "首尔":
@@ -223,7 +231,7 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
             # 根据城市设置 locale，让 Bing 知道我们要哪里的内容
-            locale="zh-HK" if city == "香港" else ("ja-JP" if city == "东京" else ("ko-KR" if city == "首尔" else ("th-TH" if city == "曼谷" else "zh-CN"))),
+            locale="zh-HK" if city in ("香港", "澳门") else ("ja-JP" if city == "东京" else ("ko-KR" if city == "首尔" else ("th-TH" if city == "曼谷" else "zh-CN"))),
         )
         page = context.new_page()
 
@@ -292,6 +300,9 @@ def _search_static(query: str, max_results: int = 8, platform: str = None, city:
     accept_lang = "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
     if city == "香港":
         accept_lang = "zh-HK,zh-Hant;q=0.9,en-HK;q=0.8,en;q=0.7"
+    elif city == "澳门":
+        # 澳门跟香港接近，用繁体中文
+        accept_lang = "zh-HK,zh-Hant;q=0.9,en-HK;q=0.8,en;q=0.7"
     elif city == "东京":
         accept_lang = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
     elif city == "首尔":
@@ -312,6 +323,8 @@ def _search_static(query: str, max_results: int = 8, platform: str = None, city:
     # 根据城市强制 Bing 地区参数
     bing_region_params = ""
     if city == "香港":
+        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
+    elif city == "澳门":
         bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
     elif city == "东京":
         bing_region_params = "&setmkt=ja-JP&setlang=ja"
