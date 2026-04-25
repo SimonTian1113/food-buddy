@@ -186,10 +186,11 @@ def _has_browser_tool() -> dict:
     return result
 
 
-def _search_browser(query: str, max_results: int = 8) -> list:
+def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     """
     浏览器搜索：用 Playwright 打开 Bing 搜索页面，提取真实搜索结果。
     比静态爬虫更稳定，能正确渲染 JS 和中文内容。
+    支持按城市强制地区过滤（香港→香港版Bing，东京→日本版Bing）。
     返回标准格式: [{title, url, snippet, score, source}, ...]
     """
     browser_tools = _has_browser_tool()
@@ -198,7 +199,20 @@ def _search_browser(query: str, max_results: int = 8) -> list:
 
     from urllib.parse import quote
     results = []
-    search_url = f"https://www.bing.com/search?q={quote(query)}&count={max_results * 2}"
+
+    # 根据城市强制 Bing 地区参数，避免内地结果垄断
+    bing_region_params = ""
+    if city == "香港":
+        # setmkt=zh-HK = 香港市场, setlang=zh-Hant = 繁体中文
+        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
+    elif city == "东京":
+        bing_region_params = "&setmkt=ja-JP&setlang=ja"
+    elif city == "首尔":
+        bing_region_params = "&setmkt=ko-KR&setlang=ko"
+    elif city == "曼谷":
+        bing_region_params = "&setmkt=th-TH&setlang=th"
+
+    search_url = f"https://www.bing.com/search?q={quote(query)}&count={max_results * 2}{bing_region_params}"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
@@ -208,6 +222,8 @@ def _search_browser(query: str, max_results: int = 8) -> list:
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
+            # 根据城市设置 locale，让 Bing 知道我们要哪里的内容
+            locale="zh-HK" if city == "香港" else ("ja-JP" if city == "东京" else ("ko-KR" if city == "首尔" else ("th-TH" if city == "曼谷" else "zh-CN"))),
         )
         page = context.new_page()
 
@@ -256,13 +272,14 @@ def _search_browser(query: str, max_results: int = 8) -> list:
     return results
 
 
-def _search_static(query: str, max_results: int = 8, platform: str = None) -> list:
+def _search_static(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
     """
     静态爬虫：尝试用 requests + BeautifulSoup 抓取 Bing 搜索结果。
     策略：能爬的优先爬（快），拿不到再 fallback。
     返回标准格式: [{title, url, snippet, score, source}, ...]
     
     如果传了 platform，会按目标平台域名过滤结果，减少无关内容混入。
+    如果传了 city，会强制 Bing 地区参数，避免内地结果垄断。
     超时 15s 未返回则视为搜索失败，返回空列表。
     """
     try:
@@ -271,18 +288,40 @@ def _search_static(query: str, max_results: int = 8, platform: str = None) -> li
     except ImportError:
         return []  # 依赖缺失，graceful fallback
 
+    # 根据城市调整 Accept-Language，让 Bing 返回对应地区内容
+    accept_lang = "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7"
+    if city == "香港":
+        accept_lang = "zh-HK,zh-Hant;q=0.9,en-HK;q=0.8,en;q=0.7"
+    elif city == "东京":
+        accept_lang = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7"
+    elif city == "首尔":
+        accept_lang = "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"
+    elif city == "曼谷":
+        accept_lang = "th-TH,th;q=0.9,en-US;q=0.8,en;q=0.7"
+
     headers = {
         "User-Agent": (
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         ),
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Language": accept_lang,
         "Referer": "https://www.bing.com/",
     }
 
+    # 根据城市强制 Bing 地区参数
+    bing_region_params = ""
+    if city == "香港":
+        bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
+    elif city == "东京":
+        bing_region_params = "&setmkt=ja-JP&setlang=ja"
+    elif city == "首尔":
+        bing_region_params = "&setmkt=ko-KR&setlang=ko"
+    elif city == "曼谷":
+        bing_region_params = "&setmkt=th-TH&setlang=th"
+
     # 用 Bing 搜索（反爬比 Google 宽松，结果结构稳定）
-    bing_url = f"https://www.bing.com/search?q={requests.utils.quote(query)}&count={max_results * 3}"
+    bing_url = f"https://www.bing.com/search?q={requests.utils.quote(query)}&count={max_results * 3}{bing_region_params}"
 
     # 重试 2 次，每次超时 15s
     resp = None
@@ -364,23 +403,24 @@ def _search_from_cache(query: str, max_results: int = 8) -> list:
     return []
 
 
-def search_web(query: str, max_results: int = 8, platform: str = None) -> list:
+def search_web(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
     """
     搜索入口：优先浏览器搜索（稳定），无浏览器时回退静态爬虫。
     返回统一格式: [{title, url, snippet, score, source}, ...]
 
     platform: 明确指定当前搜索的目标平台，用于域名过滤。
+    city: 明确指定当前城市，用于强制 Bing 地区参数（解决内地结果垄断问题）。
     """
     results = []
 
     # === 第 1 层：浏览器搜索（优先，更稳定）===
-    browser_results = _search_browser(query, max_results)
+    browser_results = _search_browser(query, max_results, city=city)
     if browser_results:
         results.extend(browser_results)
 
     # === 第 2 层：静态爬虫（浏览器不可用时回退）===
     if not results:
-        static_results = _search_static(query, max_results, platform=platform)
+        static_results = _search_static(query, max_results, platform=platform, city=city)
         if static_results:
             results.extend(static_results)
 
@@ -534,7 +574,7 @@ def resolve_restaurant_target(restaurant_name: str, city_name: str) -> dict:
     branch_hits = []
     for query in discovery_queries:
         try:
-            results = search_web(query, max_results=6)
+            results = search_web(query, max_results=6, city=city_name)
         except Exception:
             continue
         for item in results:
@@ -722,10 +762,11 @@ def collect_search_bundle(target: dict) -> dict:
         "platforms": {},
     }
 
+    city_name = target.get("city", "")
     for platform, query_list in queries.items():
         best_summary = None
         for query in query_list:
-            raw_results = search_web(query, platform=platform)
+            raw_results = search_web(query, platform=platform, city=city_name)
             filtered = filter_platform_results(raw_results, target, platform)
             summary = summarize_platform_result(platform, query, filtered)
             if not best_summary or summary["signal_strength"] > best_summary["signal_strength"]:
