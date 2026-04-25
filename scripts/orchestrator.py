@@ -160,6 +160,20 @@ MARKETING_SNIPPET_SHORT = [
     "必吃", "宝藏", "不去后悔",
 ]
 
+# ===== 反爬检测：平台 → 反爬特征关键词映射 =====
+ANTI_CRAWL_SIGNS = {
+    "dianping": ["验证码", "验证", "请验证", "安全验证", "访问受限", "过于频繁", "captcha", "verify"],
+    "openrice": ["验证码", "验证", "请验证", "安全验证", "访问受限", "过于频繁", "captcha", "verify"],
+    "xiaohongshu": ["验证码", "验证", "请验证", "安全验证", "访问受限", "登录", "captcha", "verify"],
+    "douyin": ["验证码", "验证", "请验证", "安全验证", "访问受限", "登录", "captcha", "verify"],
+    "tripadvisor": ["验证码", "验证", "请验证", "安全验证", "访问受限", "captcha", "verify"],
+    "google_maps": ["验证码", "验证", "unusual traffic", "captcha", "verify"],
+    "gaode": ["验证码", "验证", "请验证", "安全验证", "访问受限", "captcha", "verify"],
+}
+
+# 全局：记录本次搜索中触发反爬的平台（每次验证前清空）
+_anti_crawl_platforms = set()
+
 # ===== URL 域名黑名单：这些站的内容不作为有效证据 =====
 BAD_DOMAINS = [
     # SEO 农场 / 内容搬运
@@ -272,7 +286,23 @@ def _has_browser_tool() -> dict:
     return result
 
 
-def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
+def _detect_anti_crawl(text: str, platform: str = None) -> bool:
+    """检测文本中是否包含反爬/验证码特征。"""
+    if not text:
+        return False
+    text_lower = text.lower()
+    # 通用反爬关键词
+    generic_signs = ["验证码", "验证", "请验证", "安全验证", "访问受限", "过于频繁", "captcha", "verify", "unusual traffic"]
+    if any(s in text_lower for s in generic_signs):
+        return True
+    # 平台特定反爬关键词
+    if platform and platform in ANTI_CRAWL_SIGNS:
+        if any(s in text for s in ANTI_CRAWL_SIGNS[platform]):
+            return True
+    return False
+
+
+def _search_browser(query: str, max_results: int = 8, city: str = None, platform: str = None) -> list:
     """
     浏览器搜索：用 Playwright 打开 Bing 搜索页面，提取真实搜索结果。
     强制使用 Bing HK 地区参数，确保搜索结果优先返回香港本地内容。
@@ -319,6 +349,14 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
         try:
             page.goto(search_url, wait_until="networkidle", timeout=20000)
             page.wait_for_selector("li.b_algo", timeout=10000)
+            
+            # 检测页面是否包含反爬/验证码内容
+            page_text = page.inner_text("body") or ""
+            if _detect_anti_crawl(page_text, platform):
+                if platform:
+                    _anti_crawl_platforms.add(platform)
+                # 返回标记反爬的空结果
+                return [{"_anti_crawl": True, "platform": platform, "source": "browser_search"}]
 
             # 提取搜索结果
             algo_elements = page.query_selector_all("li.b_algo")
@@ -341,6 +379,13 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
                 snippet = ""
                 if snippet_elem:
                     snippet = snippet_elem.inner_text().strip()
+                
+                # 检测单个结果是否含反爬特征
+                combined = f"{title} {snippet}"
+                if _detect_anti_crawl(combined, platform):
+                    if platform:
+                        _anti_crawl_platforms.add(platform)
+                    continue  # 跳过这条反爬结果
 
                 results.append({
                     "title": title,
@@ -406,6 +451,12 @@ def _search_static(query: str, max_results: int = 8, platform: str = None) -> li
     if resp is None:
         return []
 
+    # 检测整个响应是否含反爬特征
+    if _detect_anti_crawl(resp.text, platform):
+        if platform:
+            _anti_crawl_platforms.add(platform)
+        return [{"_anti_crawl": True, "platform": platform, "source": "static_crawl"}]
+
     soup = BeautifulSoup(resp.text, "html.parser")
     results = []
     target_domains = PLATFORM_DOMAINS.get(platform, []) if platform else []
@@ -432,6 +483,13 @@ def _search_static(query: str, max_results: int = 8, platform: str = None) -> li
         if not snippet_elem:
             snippet_elem = li.select_one("[class*='caption']")
         snippet = snippet_elem.get_text(strip=True) if snippet_elem else ""
+
+        # 检测单个结果是否含反爬特征
+        combined = f"{title} {snippet}"
+        if _detect_anti_crawl(combined, platform):
+            if platform:
+                _anti_crawl_platforms.add(platform)
+            continue  # 跳过反爬结果
 
         # 如果指定了目标平台，按域名过滤
         if target_domains:
@@ -483,13 +541,18 @@ def search_web(query: str, max_results: int = 8, platform: str = None, city: str
     results = []
 
     # === 第 1 层：浏览器搜索（优先，更完整）===
-    browser_results = _search_browser(query, max_results, city=city)
+    browser_results = _search_browser(query, max_results, city=city, platform=platform)
+    # 检查是否返回了反爬标记
+    if browser_results and len(browser_results) == 1 and browser_results[0].get("_anti_crawl"):
+        return browser_results  # 直接返回反爬标记
     if browser_results:
         results.extend(browser_results)
 
     # === 第 2 层：静态爬虫（浏览器不可用时回退）===
     if not results:
-        static_results = _search_static(query, max_results, platform=platform, city=city)
+        static_results = _search_static(query, max_results, platform=platform)
+        if static_results and len(static_results) == 1 and static_results[0].get("_anti_crawl"):
+            return static_results  # 直接返回反爬标记
         if static_results:
             results.extend(static_results)
 
@@ -888,6 +951,7 @@ def extract_platform_signals(results: list, platform: str) -> dict:
         "rank": str or None,
         "data_completeness": float,  # 0.0 - 1.0
         "missing_fields": list,
+        "is_anti_crawl": bool,  # 是否触发反爬
     }
     """
     signals = {
@@ -899,7 +963,15 @@ def extract_platform_signals(results: list, platform: str) -> dict:
         "rank": None,
         "data_completeness": 0.0,
         "missing_fields": [],
+        "is_anti_crawl": False,
     }
+    
+    # 检测是否触发反爬
+    if results and len(results) == 1 and results[0].get("_anti_crawl"):
+        signals["is_anti_crawl"] = True
+        signals["rating"] = 4.0  # 行业均值默认值
+        signals["missing_fields"] = ["anti_crawl_blocked"]
+        return signals
     
     # 合并所有结果的 title + snippet
     combined_text = ""
@@ -1081,6 +1153,32 @@ def extract_platform_signals(results: list, platform: str) -> dict:
     return signals
 
 
+def _format_platform_signal_line(pkey: str, sig: dict, city: str) -> str:
+    """格式化平台信号输出，含反爬标记。"""
+    name = _get_display_name(pkey, city)
+    
+    # 反爬状态
+    if sig.get("is_anti_crawl"):
+        return f"- {name}：🚫 触发反爬，无法获取真实评分（默认均值 4.0，不参与加权）"
+    
+    # 构建硬指标行
+    hard_data = ""
+    if sig.get("rating"):
+        hard_data += f"⭐{sig['rating']}"
+    if sig.get("review_count"):
+        hard_data += f" 💬{sig['review_count']:,}"
+    if sig.get("price_range"):
+        hard_data += f" 💰{sig['price_range']}"
+    if sig.get("rank"):
+        hard_data += f" 🏅{sig['rank']}"
+    
+    if hard_data:
+        completeness = sig.get('data_completeness', 0)
+        return f"- {name}：{hard_data}（完整度 {completeness:.0%}）"
+    else:
+        return f"- {name}：未提取到量化数据"
+
+
 def collect_search_bundle(target: dict) -> dict:
     """
     搜索策略入口：
@@ -1224,24 +1322,19 @@ def format_search_bundle(bundle: dict) -> str:
     # 摘要硬指标汇总
     lines.append("")
     lines.append("## 摘要提取硬指标")
+    
+    # 反爬平台汇总
+    anti_crawl_platforms = []
     for platform, sig in platform_signals.items():
-        name = _get_display_name(platform, city_name)
-        parts = []
-        if sig.get("rating") is not None:
-            parts.append(f"⭐{sig['rating']}")
-        if sig.get("review_count") is not None:
-            parts.append(f"💬{sig['review_count']:,}")
-        if sig.get("price_range") is not None:
-            parts.append(f"💰{sig['price_range']}")
-        if sig.get("rank") is not None:
-            parts.append(f"🏅{sig['rank']}")
-        if sig.get("district") is not None:
-            parts.append(f"📍{sig['district']}")
-        
-        if parts:
-            lines.append(f"- {name}：{' | '.join(parts)}（完整度 {sig.get('data_completeness', 0):.0%}）")
-        else:
-            lines.append(f"- {name}：未提取到量化数据")
+        if sig.get("is_anti_crawl"):
+            anti_crawl_platforms.append(_get_display_name(platform, city_name))
+    
+    if anti_crawl_platforms:
+        lines.append(f"🚫 反爬拦截：{', '.join(anti_crawl_platforms)} — 这些平台触发了反爬机制，无法获取真实评分，默认使用行业均值 4.0（不参与加权裁决）")
+        lines.append("")
+    
+    for platform, sig in platform_signals.items():
+        lines.append(_format_platform_signal_line(platform, sig, city_name))
     
     # 数据完整度总评
     region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
@@ -1308,9 +1401,22 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
     if target.get("branch_candidates"):
         search_lines.append(f"分店线索：{', '.join(target['branch_candidates'])}")
 
+    # 反爬平台提示
+    anti_crawl_list = []
+    for pkey, sig in platform_signals.items():
+        if sig.get("is_anti_crawl"):
+            anti_crawl_list.append(_get_display_name(pkey, city))
+    if anti_crawl_list:
+        search_lines.append(f"\n🚫 反爬拦截：{', '.join(anti_crawl_list)} — 触发平台反爬，无法获取真实评分（默认均值 4.0，不参与加权）")
+    
     for pkey, summary in platforms.items():
         name = _get_display_name(pkey, city)
         sig = platform_signals.get(pkey, {})
+        
+        # 反爬平台跳过详细输出
+        if sig.get("is_anti_crawl"):
+            search_lines.append(f"- {name}：🚫 反爬拦截 — 无法获取真实数据")
+            continue
         
         # 构建硬指标行
         hard_data = ""
@@ -1635,7 +1741,12 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
     
     # 量化评分：将真实评分归一化到 0-1 区间
     has_real_rating = False
+    anti_crawl_platforms_judge = []
     for pkey, sig in platform_signals.items():
+        # 跳过反爬平台，不计入加权
+        if sig.get("is_anti_crawl"):
+            anti_crawl_platforms_judge.append(_get_display_name(pkey, city))
+            continue
         if sig.get("rating") is not None:
             weight = platform_weights_judge.get(pkey, 0.15)
             # 评分归一化：5分制 → 0-1（3.0以下算0，5.0算1）
@@ -1722,9 +1833,14 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
         f"数据完整度：{avg_completeness:.0%}（{'充分' if avg_completeness >= 0.7 else '部分缺失' if avg_completeness >= 0.3 else '严重不足'}）",
     ]
     
-    # 列出各平台评分
-    if ratings_from_signals:
-        rating_parts = [f"{_get_display_name(p, city)} {r}" for p, r in ratings_from_signals.items()]
+    # 反爬平台提示
+    if anti_crawl_platforms_judge:
+        judge_lines.append(f"🚫 反爬拦截（未参与加权）：{', '.join(anti_crawl_platforms_judge)}")
+    
+    # 列出各平台评分（排除反爬平台）
+    real_ratings = {p: r for p, r in ratings_from_signals.items() if not platform_signals.get(p, {}).get("is_anti_crawl")}
+    if real_ratings:
+        rating_parts = [f"{_get_display_name(p, city)} {r}" for p, r in real_ratings.items()]
         judge_lines.append(f"各平台评分：{' / '.join(rating_parts)}")
     
     judge_lines.extend([
@@ -1904,6 +2020,10 @@ def interactive_mode():
                     parts = re.split(r"[，,]", user_input, maxsplit=1)
                     restaurant_name = parts[0].strip()
                     concern = parts[1].strip() if len(parts) > 1 else ""
+
+                # 每次验证前清空反爬记录
+                global _anti_crawl_platforms
+                _anti_crawl_platforms = set()
 
                 result = mvp.run_verification(restaurant_name, concern)
 
