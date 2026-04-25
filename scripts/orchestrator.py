@@ -44,10 +44,11 @@ PLATFORM_DISPLAY_NAMES = {
     "tripadvisor": "TripAdvisor",
 }
 PLATFORM_DOMAINS = {
+    "openrice": ["openrice.com"],
     "google_maps": ["google.com", "maps.google.com"],
     "dianping": ["dianping.com", "m.dianping.com"],
     "xiaohongshu": ["xiaohongshu.com", "www.xiaohongshu.com"],
-    "openrice": ["openrice.com"],
+    "tripadvisor": ["tripadvisor.com", "www.tripadvisor.com"],
 }
 # ===== 标题级过滤：聚合页 / 列表页 / 非目标店专属内容 =====
 BAD_TITLE_HINTS = [
@@ -624,32 +625,41 @@ def resolve_restaurant_target(restaurant_name: str, city_name: str) -> dict:
 
 
 def platform_queries(target: dict) -> dict:
+    """
+    为每个平台生成 Bing 搜索查询。
+    策略：每个平台单独搜"平台名 品牌名 城市"，确保 Bing 明确知道我们要搜哪个平台上的内容。
+    5 个平台全部生成，不遗漏。
+    """
     restaurant_name = target["brand_name"]
     city_name = target["city"]
     branch_candidates = target.get("branch_candidates", [])
 
     anchor = branch_candidates[0] if branch_candidates else city_name
 
+    # 所有城市都生成 5 个平台的查询
+    # 格式："平台名 品牌名 城市" —— 让 Bing 明确知道我们要搜该平台上的内容
     queries = {
+        "openrice": [
+            f'OpenRice "{restaurant_name}" {city_name}',
+            f'site:openrice.com "{restaurant_name}" "{anchor}"',
+        ],
         "google_maps": [
-            f'{restaurant_name} {city_name} Google Maps',
+            f'"Google Maps" "{restaurant_name}" {city_name}',
             f'site:google.com/maps "{restaurant_name}" "{anchor}"',
         ],
         "dianping": [
-            f'{restaurant_name} {city_name} 大众点评',
+            f'大众点评 "{restaurant_name}" {city_name}',
             f'site:dianping.com "{restaurant_name}" "{anchor}"',
         ],
         "xiaohongshu": [
-            f'{restaurant_name} {city_name} 小红书',
+            f'小红书 "{restaurant_name}" {city_name}',
             f'site:xiaohongshu.com "{restaurant_name}" "{anchor}"',
         ],
+        "tripadvisor": [
+            f'TripAdvisor "{restaurant_name}" {city_name}',
+            f'site:tripadvisor.com "{restaurant_name}" "{anchor}"',
+        ],
     }
-
-    if city_name == "香港":
-        queries["openrice"] = [
-            f'{restaurant_name} 香港 OpenRice',
-            f'site:openrice.com "{restaurant_name}" "{anchor}" 香港',
-        ]
 
     return queries
 
