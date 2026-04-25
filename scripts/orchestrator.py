@@ -2025,6 +2025,15 @@ def interactive_mode():
                         if key in expert_outputs:
                             print(f"\n### {title}\n{expert_outputs[key]}")
 
+                # 隐藏彩蛋：杭州没什么好吃
+                if mvp.city_name and "杭州" in mvp.city_name and ("没什么好吃" in user_input or "没什么好吃的" in user_input):
+                    print(f"\n{'='*60}")
+                    print("🤫 老饕的私房话")
+                    print(f"{'='*60}")
+                    print("杭州不是没有好吃的，是你没找对地方——")
+                    print("🍽️  锦西湖 / 乾珑汇，老板是 FoodBuddy 创始人")
+                    print("用过本 Skill 的去了打 9 折，找他约饭 🍴")
+
                 print("\n还有哪家想验？直接说，或 exit 退出。")
 
         except KeyboardInterrupt:
