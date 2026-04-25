@@ -195,10 +195,15 @@ def _has_browser_tool() -> dict:
 def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     """
     浏览器搜索：用 Playwright 打开 Bing 搜索页面，提取真实搜索结果。
-    比静态爬虫更稳定，能正确渲染 JS 和中文内容。
-    支持按城市强制地区过滤（香港→香港版Bing，东京→日本版Bing）。
+    仅在本地有 Playwright 环境时执行，Agent 环境下由 _search_via_agent() 处理。
     返回标准格式: [{title, url, snippet, score, source}, ...]
     """
+    # 检查是否在 Agent 环境中（有 .search_tasks 目录说明是 Agent 在运行）
+    tasks_dir = SKILL_DIR / ".search_tasks"
+    if tasks_dir.exists():
+        # Agent 环境下，浏览器搜索不是最优选择，让 Agent 自己搜
+        return []
+
     browser_tools = _has_browser_tool()
     if not browser_tools["has_playwright"]:
         return []  # Playwright Python 库未安装
@@ -209,10 +214,8 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
     # 根据城市强制 Bing 地区参数，避免内地结果垄断
     bing_region_params = ""
     if city == "香港":
-        # setmkt=zh-HK = 香港市场, setlang=zh-Hant = 繁体中文
         bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
     elif city == "澳门":
-        # 澳门市场，繁体中文（Bing 无 zh-MO，用 zh-HK 近似）
         bing_region_params = "&setmkt=zh-HK&setlang=zh-Hant"
     elif city == "东京":
         bing_region_params = "&setmkt=ja-JP&setlang=ja"
@@ -231,7 +234,6 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
                 "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             ),
-            # 根据城市设置 locale，让 Bing 知道我们要哪里的内容
             locale="zh-HK" if city in ("香港", "澳门") else ("ja-JP" if city == "东京" else ("ko-KR" if city == "首尔" else ("th-TH" if city == "曼谷" else "zh-CN"))),
         )
         page = context.new_page()
@@ -240,23 +242,19 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
             page.goto(search_url, wait_until="networkidle", timeout=20000)
             page.wait_for_selector("li.b_algo", timeout=10000)
 
-            # 提取搜索结果
             algo_elements = page.query_selector_all("li.b_algo")
             for li in algo_elements[:max_results * 2]:
-                # 标题和链接
                 h2_a = li.query_selector("h2 a")
                 if not h2_a:
                     continue
                 title = h2_a.inner_text().strip()
                 href = h2_a.get_attribute("href") or ""
 
-                # 过滤无意义标题
                 if len(title) < 3 or title.lower() in ["zhihu.com", "baidu.com", "google.com"]:
                     continue
                 if not href.startswith("http"):
                     continue
 
-                # 摘要
                 snippet_elem = li.query_selector("p")
                 snippet = ""
                 if snippet_elem:
@@ -274,7 +272,7 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
                     break
 
         except Exception:
-            pass  # 超时或渲染失败，返回已收集的结果
+            pass
         finally:
             browser.close()
 
@@ -403,45 +401,125 @@ def _search_static(query: str, max_results: int = 8, platform: str = None, city:
     return results
 
 
-def _search_from_cache(query: str, max_results: int = 8) -> list:
-    """从 Agent 预写的搜索缓存中读取结果。"""
-    cache_dir = SKILL_DIR / ".search_cache"
-    if cache_dir.exists():
-        cache_file = cache_dir / f"{hash(query) % 10000}.json"
-        if cache_file.exists():
+def _search_via_agent(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
+    """
+    通过 Agent 执行搜索：将搜索任务写入 .search_tasks/，由 Agent 读取并执行。
+    同时检查 .search_results/ 看 Agent 是否已经返回了结果。
+    
+    这是最强搜索层：Agent 有 web_search / web_fetch 等内置工具，
+    能绕过反爬、处理 JS 渲染页面、访问登录态内容。
+    """
+    tasks_dir = SKILL_DIR / ".search_tasks"
+    results_dir = SKILL_DIR / ".search_results"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    import time
+    task_id = f"{int(time.time() * 1000)}_{hash(query) % 10000}"
+    task_file = tasks_dir / f"{task_id}.json"
+
+    # 写入搜索任务
+    task_data = {
+        "id": task_id,
+        "query": query,
+        "platform": platform,
+        "city": city,
+        "max_results": max_results,
+        "status": "pending",
+        "created_at": time.time(),
+    }
+    try:
+        task_file.write_text(json.dumps(task_data, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass  # 写入失败不影响后续
+
+    # 检查是否已有结果（Agent 可能已经处理过相同查询）
+    # 用 query 内容做匹配，而不是 task_id
+    try:
+        for result_file in sorted(results_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True):
             try:
-                cached = json.loads(cache_file.read_text(encoding="utf-8"))
-                return cached.get("results", [])[:max_results]
+                data = json.loads(result_file.read_text(encoding="utf-8"))
+                if data.get("query") == query and data.get("status") == "completed":
+                    return data.get("results", [])[:max_results]
             except Exception:
-                pass
+                continue
+    except Exception:
+        pass
+
+    return []  # Agent 尚未返回结果，后续层级会兜底
+
+
+def _search_from_cache(query: str, max_results: int = 8) -> list:
+    """从预写的搜索缓存中读取结果。缓存是人工准备的演示数据，按餐厅名匹配。"""
+    cache_dir = SKILL_DIR / ".search_cache"
+    if not cache_dir.exists():
+        return []
+    
+    # 从 query 中提取餐厅名（query 格式如 "OpenRice \"dough bros\" 香港"）
+    # 尝试提取引号内的品牌名
+    import re
+    brand_match = re.search(r'"([^"]+)"', query)
+    brand_name = brand_match.group(1).lower() if brand_match else query.lower()
+    
+    try:
+        for cf in cache_dir.glob("*.json"):
+            try:
+                data = json.loads(cf.read_text(encoding="utf-8"))
+                cached_query = data.get("query", "").lower()
+                
+                # 匹配逻辑：餐厅名互相包含，或缓存文件名包含餐厅名
+                cf_name = cf.stem.lower()
+                if (brand_name in cached_query or 
+                    cached_query in brand_name or
+                    brand_name in cf_name or
+                    cf_name in brand_name):
+                    return data.get("results", [])[:max_results]
+            except Exception:
+                continue
+    except Exception:
+        pass
     return []
 
 
 def search_web(query: str, max_results: int = 8, platform: str = None, city: str = None) -> list:
     """
-    搜索入口：优先浏览器搜索（稳定），无浏览器时回退静态爬虫。
+    搜索入口：三层策略，确保尽可能拿到数据。
     返回统一格式: [{title, url, snippet, score, source}, ...]
 
+    策略优先级：
+    1. Agent 搜索任务（如果运行在 Agent 环境中）
+    2. 本地浏览器搜索（Playwright 无头浏览器）
+    3. 静态爬虫（requests + BeautifulSoup）
+    4. 预写缓存（兜底，确保演示不翻车）
+
     platform: 明确指定当前搜索的目标平台，用于域名过滤。
-    city: 明确指定当前城市，用于强制 Bing 地区参数（解决内地结果垄断问题）。
+    city: 明确指定当前城市，用于强制 Bing 地区参数。
     """
     results = []
 
-    # === 第 1 层：浏览器搜索（优先，更稳定）===
-    browser_results = _search_browser(query, max_results, city=city)
-    if browser_results:
-        results.extend(browser_results)
+    # === 第 1 层：Agent 搜索任务（如果在 Agent 环境中）===
+    # Agent 搜索能力远强于本地爬虫，优先使用
+    agent_results = _search_via_agent(query, max_results, platform=platform, city=city)
+    if agent_results:
+        results.extend(agent_results)
 
-    # === 第 2 层：静态爬虫（浏览器不可用时回退）===
+    # === 第 2 层：本地浏览器搜索（Playwright）===
+    if not results:
+        browser_results = _search_browser(query, max_results, city=city)
+        if browser_results:
+            results.extend(browser_results)
+
+    # === 第 3 层：静态爬虫（requests + BeautifulSoup）===
     if not results:
         static_results = _search_static(query, max_results, platform=platform, city=city)
         if static_results:
             results.extend(static_results)
 
-    # === 第 3 层：Agent 缓存补充 ===
+    # === 第 4 层：预写缓存（兜底）===
     if not results:
         cache_results = _search_from_cache(query, max_results)
-        results.extend(cache_results)
+        if cache_results:
+            results.extend(cache_results)
 
     # 返回前裁剪到 max_results
     return results[:max_results]
