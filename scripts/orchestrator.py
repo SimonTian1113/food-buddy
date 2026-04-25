@@ -47,24 +47,11 @@ CITIES = {
     "南京": "nanjing",
     "Nanjing": "nanjing",
     "西安": "xian",
-    # 台湾
-    "台北": "taipei",
-    "Taipei": "taipei",
-    # 海外
-    "曼谷": "bangkok",
-    "Bangkok": "bangkok",
-    "bkk": "bangkok",
-    "东京": "tokyo",
-    "Tokyo": "tokyo",
-    "首尔": "seoul",
-    "Seoul": "seoul",
 }
 
 # ===== 区域分类：决定平台权重体系和搜索策略 =====
 REGION_HK_MACAU = "hk_macau"   # 港澳模式
 REGION_MAINLAND = "mainland"    # 内地模式
-REGION_TAIWAN = "taiwan"        # 台湾模式
-REGION_OVERSEAS = "overseas"    # 海外模式
 
 CITY_REGIONS = {
     # 港澳
@@ -74,10 +61,6 @@ CITY_REGIONS = {
     "深圳": REGION_MAINLAND, "成都": REGION_MAINLAND, "杭州": REGION_MAINLAND,
     "长沙": REGION_MAINLAND, "重庆": REGION_MAINLAND, "武汉": REGION_MAINLAND,
     "南京": REGION_MAINLAND, "西安": REGION_MAINLAND,
-    # 台湾
-    "台北": REGION_TAIWAN,
-    # 海外
-    "曼谷": REGION_OVERSEAS, "东京": REGION_OVERSEAS, "首尔": REGION_OVERSEAS,
 }
 
 TAVILY_API_URL = "https://api.tavily.com/search"
@@ -130,36 +113,18 @@ REGION_PLATFORM_WEIGHTS = {
         "gaode": 0.20,
         "general": 0.20,
     },
-    REGION_TAIWAN: {
-        "openrice": 0.30,
-        "google_maps": 0.25,
-        "dianping": 0.20,
-        "xiaohongshu": 0.15,
-        "tripadvisor": 0.10,
-    },
-    REGION_OVERSEAS: {
-        "google_maps": 0.30,
-        "tripadvisor": 0.25,
-        "dianping": 0.20,
-        "xiaohongshu": 0.15,
-        "openrice": 0.10,
-    },
 }
 
 # ===== 区域 → 平台显示名映射 =====
 REGION_DISPLAY_NAMES = {
     REGION_HK_MACAU: PLATFORM_DISPLAY_NAMES,
     REGION_MAINLAND: MAINLAND_PLATFORM_DISPLAY_NAMES,
-    REGION_TAIWAN: PLATFORM_DISPLAY_NAMES,
-    REGION_OVERSEAS: PLATFORM_DISPLAY_NAMES,
 }
 
 # ===== 区域 → 平台域名映射 =====
 REGION_DOMAINS = {
     REGION_HK_MACAU: PLATFORM_DOMAINS,
     REGION_MAINLAND: MAINLAND_PLATFORM_DOMAINS,
-    REGION_TAIWAN: PLATFORM_DOMAINS,
-    REGION_OVERSEAS: PLATFORM_DOMAINS,
 }
 # ===== 标题级过滤：聚合页 / 列表页 / 非目标店专属内容 =====
 BAD_TITLE_HINTS = [
@@ -331,26 +296,10 @@ def _search_browser(query: str, max_results: int = 8, city: str = None) -> list:
         bing_params = "&setmkt=zh-HK&setlang=zh-Hant"
         locale = "zh-HK"
         accept_lang = "zh-HK,zh-Hant;q=0.9,en;q=0.8"
-    elif region == REGION_TAIWAN:
-        bing_params = "&setmkt=zh-TW&setlang=zh-TW"
-        locale = "zh-TW"
-        accept_lang = "zh-TW,zh;q=0.9,en;q=0.8"
-    elif region == REGION_MAINLAND:
+    else:  # REGION_MAINLAND
         bing_params = "&setmkt=zh-CN&setlang=zh-Hans"
         locale = "zh-CN"
         accept_lang = "zh-CN,zh;q=0.9,en;q=0.8"
-    elif city == "东京":
-        bing_params = "&setmkt=ja-JP&setlang=ja"
-        locale = "ja-JP"
-        accept_lang = "ja;q=0.9,en;q=0.8"
-    elif city == "首尔":
-        bing_params = "&setmkt=ko-KR&setlang=ko"
-        locale = "ko-KR"
-        accept_lang = "ko;q=0.9,en;q=0.8"
-    elif city == "曼谷":
-        bing_params = "&setmkt=th-TH&setlang=th"
-        locale = "th-TH"
-        accept_lang = "th;q=0.9,en;q=0.8"
 
     search_url = f"https://www.bing.com/search?q={quote(query)}&count={max_results * 2}{bing_params}"
 
@@ -584,7 +533,7 @@ def extract_domain(url: str) -> str:
 
 
 def contains_city_conflict(text: str, city_name: str) -> bool:
-    city_markers = ["香港", "东京", "首尔", "曼谷", "深圳", "广州", "长沙", "青岛", "北京", "上海", "伦敦"]
+    city_markers = ["香港", "澳门", "深圳", "广州", "长沙", "北京", "上海", "成都", "杭州", "重庆", "武汉", "南京", "西安"]
     text = text or ""
     for marker in city_markers:
         if marker != city_name and marker in text:
@@ -804,40 +753,6 @@ def platform_queries(target: dict) -> dict:
         queries["general"] = [
             f'"{restaurant_name}" {anchor} 评价 新闻',
             f'"{restaurant_name}" {anchor} site:weibo.com OR site:ctrip.com',
-        ]
-
-    elif region == REGION_TAIWAN:
-        # ===== 台湾模式：复用港澳逻辑 =====
-        queries["openrice"] = [
-            f'site:openrice.com "{restaurant_name}" {anchor}',
-            f'"{restaurant_name}" {anchor} openrice',
-        ]
-        queries["google_maps"] = [
-            f'"{restaurant_name}" {anchor} Google Maps 评分',
-        ]
-        queries["tripadvisor"] = [
-            f'"{restaurant_name}" {anchor} tripadvisor 评分',
-        ]
-        queries["dianping"] = [
-            f'"{restaurant_name}" {anchor} 大众点评',
-        ]
-        queries["xiaohongshu"] = [
-            f'"{restaurant_name}" {anchor} 小红书',
-        ]
-
-    else:
-        # ===== 海外模式 =====
-        queries["google_maps"] = [
-            f'"{restaurant_name}" {anchor} Google Maps',
-        ]
-        queries["tripadvisor"] = [
-            f'"{restaurant_name}" {anchor} tripadvisor',
-        ]
-        queries["dianping"] = [
-            f'"{restaurant_name}" {anchor} 大众点评',
-        ]
-        queries["xiaohongshu"] = [
-            f'"{restaurant_name}" {anchor} 小红书',
         ]
 
     return queries
@@ -1203,10 +1118,8 @@ def collect_search_bundle(target: dict) -> dict:
     region = CITY_REGIONS.get(city, REGION_MAINLAND)
     if region == REGION_MAINLAND:
         authority_platforms = ["dianping", "douyin", "xiaohongshu", "gaode"]
-    elif region == REGION_HK_MACAU:
+    else:  # REGION_HK_MACAU
         authority_platforms = ["openrice", "google_maps", "tripadvisor"]
-    else:
-        authority_platforms = ["google_maps"]
     
     has_any_rating = any(
         bundle["platform_signals"].get(p, {}).get("rating") is not None
@@ -1275,8 +1188,6 @@ def _get_region_label(city_name: str) -> str:
     labels = {
         REGION_HK_MACAU: "🇭🇰 港澳模式",
         REGION_MAINLAND: "🇨🇳 内地模式",
-        REGION_TAIWAN: "🇹🇼 台湾模式",
-        REGION_OVERSEAS: "🌍 海外模式",
     }
     return labels.get(region, "🇨🇳 内地模式")
 
@@ -1336,10 +1247,8 @@ def format_search_bundle(bundle: dict) -> str:
     region = CITY_REGIONS.get(city_name, REGION_MAINLAND)
     if region == REGION_MAINLAND:
         authority_keys = ["dianping", "douyin", "xiaohongshu", "gaode"]
-    elif region == REGION_HK_MACAU:
-        authority_keys = ["openrice", "google_maps", "tripadvisor"]
     else:
-        authority_keys = ["google_maps", "tripadvisor", "openrice"]
+        authority_keys = ["openrice", "google_maps", "tripadvisor"]
     
     authority_data = {p: platform_signals.get(p, {}) for p in authority_keys if platform_signals.get(p)}
     completeness_values = [d.get("data_completeness", 0) for d in authority_data.values()]
@@ -1429,10 +1338,8 @@ def generate_expert_analysis(search_bundle: dict, target: dict, concern: str = "
     region = CITY_REGIONS.get(city, REGION_MAINLAND)
     if region == REGION_MAINLAND:
         authority_keys = ["dianping", "douyin", "xiaohongshu", "gaode"]
-    elif region == REGION_HK_MACAU:
-        authority_keys = ["openrice", "google_maps", "tripadvisor"]
     else:
-        authority_keys = ["google_maps", "tripadvisor", "openrice"]
+        authority_keys = ["openrice", "google_maps", "tripadvisor"]
     authority_data = {p: platform_signals.get(p, {}) for p in authority_keys if platform_signals.get(p)}
     completeness_values = [d.get("data_completeness", 0) for d in authority_data.values()]
     avg_completeness = sum(completeness_values) / len(completeness_values) if completeness_values else 0
