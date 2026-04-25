@@ -193,18 +193,13 @@ food-buddy/
 │   ├── cities.md               # 支持城市列表
 │   └── expert-protocol.md      # 多专家验证协议
 ├── prompts/
-│   ├── experts/                # 6 位专家 prompt
-│   │   ├── search-coord.md     # 线索猎犬
-│   │   ├── marketing-detect.md # 拆台师
-│   │   ├── review-analyst.md   # 评论法医
-│   │   ├── local-expert.md     # 街坊雷达
-│   │   ├── scene-matcher.md    # 场景裁剪师
-│   │   └── judge.md            # 收口官
-│   ├── host_hongkong.md        # 香港城市 host
-│   ├── host_macau.md           # 澳门城市 host
-│   ├── host_tokyo.md           # 东京城市 host
-│   ├── host_seoul.md           # 首尔城市 host
-│   └── host_bangkok.md         # 曼谷城市 host
+│   └── experts/                # 6 位探员 prompt
+│       ├── search-coord.md     # 线索猎犬
+│       ├── marketing-detect.md # 拆台师
+│       ├── review-analyst.md   # 评论法医
+│       ├── local-expert.md     # 街坊雷达
+│       ├── scene-matcher.md    # 场景裁剪师
+│       └── judge.md            # 收口官
 └── scripts/
     └── orchestrator.py         # MVP 入口脚本
 ```
